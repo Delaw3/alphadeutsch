@@ -1,8 +1,10 @@
-import { AnimatedStatCard } from "@/components/AnimatedStatCard";
+import Link from "next/link";
 import { CourseCard } from "@/components/CourseCard";
 import { CTASection } from "@/components/CTASection";
 import { FAQAccordion } from "@/components/FAQAccordion";
 import { FeatureCard } from "@/components/FeatureCard";
+import { GalleryScatter } from "@/components/GalleryScatter";
+import { HomeLoader } from "@/components/HomeLoader";
 import { Hero } from "@/components/Hero";
 import { Reveal } from "@/components/Reveal";
 import { SectionHeader } from "@/components/SectionHeader";
@@ -10,14 +12,14 @@ import { TestimonialCard } from "@/components/TestimonialCard";
 import { courses } from "@/data/courses";
 import { faqs } from "@/data/faqs";
 import { features } from "@/data/features";
-import { galleryItems } from "@/data/gallery";
 import { testimonials } from "@/data/testimonials";
 import { websiteSections } from "@/data/website-sections";
-import { brandCopy, courseProcess, stats } from "@/lib/constants";
+import { brandCopy, courseProcess } from "@/lib/constants";
 
 export default function Home() {
   return (
     <>
+      <HomeLoader />
       <Hero />
 
       <Reveal>
@@ -78,7 +80,7 @@ export default function Home() {
             <SectionHeader
               eyebrow="How enrollment works"
               title="A simple four-step course process"
-              description="The current prototype keeps this process static. Later, NestJS can power registration, confirmations, receipts, and student records."
+              description="Start by choosing your German level, complete registration and payment, then join your on-site class or receive confirmation for online and private learning."
             />
             {/* Future NestJS integration: connect registration, payment status, and confirmation workflows here. */}
             <div className="grid gap-4 sm:grid-cols-2">
@@ -95,29 +97,30 @@ export default function Home() {
 
       <Reveal>
         <section className="container-shell py-20">
-          <SectionHeader
-            eyebrow="Gallery"
-            title="A glimpse of the Alpha Deutsch experience"
-            description="This frontend gallery uses static images for now. Later, NestJS can power real gallery albums, image uploads, captions, categories, and publishing controls."
-          />
+          <div className="grid gap-8 lg:grid-cols-[0.82fr_1.18fr] lg:items-center">
+            <SectionHeader
+              eyebrow="Gallery"
+              title="A scattered glimpse of Alpha Deutsch life"
+              description="Featured moments from the learning center, arranged as a preview. Click any image to open the full gallery."
+            />
+            <div className="hidden justify-end lg:flex">
+              <Link
+                href="/gallery"
+                className="focus-ring rounded-full border border-slate-200 bg-white/70 px-5 py-3 text-sm font-black text-[#0a1224] shadow-sm transition hover:-translate-y-0.5 hover:bg-white"
+              >
+                Open Gallery
+              </Link>
+            </div>
+          </div>
           {/* Future NestJS integration: replace static galleryItems with backend-managed gallery albums and media records. */}
-          <div className="mt-10 grid gap-5 md:grid-cols-2 lg:grid-cols-4">
-            {galleryItems.map((item) => (
-              <article key={item.title} className="surface group overflow-hidden rounded-3xl">
-                <div className="relative aspect-[4/5] overflow-hidden">
-                  <img
-                    src={item.image}
-                    alt={item.title}
-                    className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#0a1224]/82 via-[#0a1224]/18 to-transparent" />
-                  <div className="absolute bottom-0 left-0 right-0 p-5 text-white">
-                    <p className="text-xs font-black uppercase tracking-[0.16em] text-[#ffce45]">{item.category}</p>
-                    <h3 className="mt-2 text-lg font-black">{item.title}</h3>
-                  </div>
-                </div>
-              </article>
-            ))}
+          <GalleryScatter />
+          <div className="mt-8 flex lg:hidden">
+            <Link
+              href="/gallery"
+              className="focus-ring w-full rounded-full bg-[#ffce45] px-5 py-3 text-center text-sm font-black text-black shadow-lg shadow-yellow-900/10"
+            >
+              Open Gallery
+            </Link>
           </div>
         </section>
       </Reveal>
@@ -138,16 +141,6 @@ export default function Home() {
           <SectionHeader align="center" eyebrow="FAQ" title="Questions students ask first" />
           <div className="mx-auto mt-10 max-w-3xl">
             <FAQAccordion faqs={faqs} />
-          </div>
-        </section>
-      </Reveal>
-
-      <Reveal>
-        <section className="container-shell py-20">
-          <div className="grid gap-5 md:grid-cols-3">
-            {stats.map((item) => (
-              <AnimatedStatCard key={item.label} value={item.value} label={item.label} />
-            ))}
           </div>
         </section>
       </Reveal>

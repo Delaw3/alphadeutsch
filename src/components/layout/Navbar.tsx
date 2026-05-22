@@ -39,18 +39,18 @@ export function Navbar() {
   return (
     <header className="site-header sticky top-0 z-50 border-b border-slate-200/70 bg-white/88 backdrop-blur-xl">
       <div className="flag-strip h-1" />
-      <nav className="container-shell flex items-center justify-between gap-4 py-2 lg:py-1.5">
+      <nav className="container-shell flex items-center justify-between gap-4 py-3 lg:py-1.5">
         <Link href="/" className="focus-ring flex items-center gap-3 rounded-full" onClick={() => setIsOpen(false)}>
-          <span className="relative block h-12 w-52 overflow-visible sm:h-16 sm:w-64 lg:h-16 lg:w-64">
+          <span className="relative block h-14 w-56 overflow-visible sm:h-16 sm:w-64 lg:h-16 lg:w-64">
             <img
               src={siteConfig.logos.lightTheme}
               alt="Alpha Deutsch"
-              className="site-logo-dark h-full w-full scale-150 object-contain object-left origin-left"
+              className="site-logo-dark h-full w-full scale-[1.62] object-contain object-left origin-left lg:scale-150"
             />
             <img
               src={siteConfig.logos.darkTheme}
               alt="Alpha Deutsch"
-              className="site-logo-white h-full w-full scale-150 object-contain object-left origin-left"
+              className="site-logo-white h-full w-full scale-[1.62] object-contain object-left origin-left lg:scale-150"
             />
           </span>
         </Link>
@@ -86,7 +86,7 @@ export function Navbar() {
           <button
             type="button"
             onClick={toggleTheme}
-            className="theme-toggle focus-ring grid size-10 place-items-center rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:bg-slate-50 sm:size-11"
+            className="theme-toggle focus-ring grid size-11 place-items-center rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:bg-slate-50 sm:size-12"
             aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}
           >
             <span className="theme-toggle-mark" />
@@ -97,7 +97,7 @@ export function Navbar() {
             aria-expanded={isOpen}
             aria-controls="mobile-navigation"
             onClick={() => setIsOpen((current) => !current)}
-            className="menu-toggle focus-ring grid size-10 place-items-center rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:bg-slate-50 sm:size-11"
+            className="menu-toggle focus-ring grid size-11 place-items-center rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:bg-slate-50 sm:size-12"
           >
             <span className="relative block h-5 w-6">
               <span

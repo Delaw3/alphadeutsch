@@ -39,6 +39,6 @@ export const websiteSections: WebsiteSection[] = [
   },
   {
     title: "Result Portal preview",
-    description: "A frontend-only preview of the future student result and progress portal experience.",
+    description: "A student result access area for checking course outcomes with registration details.",
   },
 ];

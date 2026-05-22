@@ -88,6 +88,12 @@ summary {
 }
 
 .reveal-section {
+  opacity: 1;
+  transform: none;
+  filter: none;
+}
+
+.reveal-section.is-ready {
   opacity: 0;
   transform: translateY(28px);
   filter: blur(8px);
@@ -97,7 +103,7 @@ summary {
     filter 700ms ease;
 }
 
-.reveal-section.is-visible {
+.reveal-section.is-ready.is-visible {
   opacity: 1;
   transform: translateY(0);
   filter: blur(0);
@@ -121,6 +127,122 @@ summary {
 
 .portal-field:nth-of-type(4) {
   animation-delay: 240ms;
+}
+
+.home-loader {
+  background:
+    radial-gradient(circle at 18% 18%, rgba(255, 206, 69, 0.26), transparent 20rem),
+    radial-gradient(circle at 82% 22%, rgba(221, 31, 45, 0.24), transparent 24rem),
+    linear-gradient(135deg, #050914 0%, #0a1224 48%, #18202f 100%);
+}
+
+.home-loader::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.045) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(circle at center, black, transparent 72%);
+  pointer-events: none;
+}
+
+.home-loader-exit {
+  opacity: 0;
+  transform: scale(1.02);
+  pointer-events: none;
+}
+
+.home-loader-flag {
+  position: relative;
+  isolation: isolate;
+}
+
+.home-loader-flag::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.38), transparent);
+  transform: translateX(-120%);
+  animation: flag-loader-shine 1.35s ease-in-out infinite;
+}
+
+.loader-band {
+  height: 33.333%;
+  transform-origin: left;
+  animation: flag-band-slide 1.12s cubic-bezier(0.22, 1, 0.36, 1) infinite alternate;
+}
+
+.loader-band-black {
+  background: #111111;
+}
+
+.loader-band-red {
+  background: #dd1f2d;
+  animation-delay: 120ms;
+}
+
+.loader-band-gold {
+  background: #ffce45;
+  animation-delay: 240ms;
+}
+
+@keyframes flag-band-slide {
+  from {
+    transform: scaleX(0.22);
+    opacity: 0.65;
+  }
+  to {
+    transform: scaleX(1);
+    opacity: 1;
+  }
+}
+
+@keyframes flag-loader-shine {
+  55%,
+  100% {
+    transform: translateX(120%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-loader,
+  .loader-band,
+  .home-loader-flag::after {
+    animation: none;
+    transition: none;
+  }
+
+  .loader-band {
+    transform: scaleX(1);
+  }
+}
+
+.gallery-polaroid {
+  animation: gallery-float-in 720ms ease both;
+  transform-origin: center;
+}
+
+.gallery-polaroid:nth-child(2) {
+  animation-delay: 90ms;
+}
+
+.gallery-polaroid:nth-child(3) {
+  animation-delay: 180ms;
+}
+
+.gallery-polaroid:nth-child(4) {
+  animation-delay: 270ms;
+}
+
+@keyframes gallery-float-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes portal-card-in {

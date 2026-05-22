@@ -15,10 +15,10 @@ export const faqs: FAQ[] = [
   },
   {
     question: "Does Alpha Deutsch support study and visa preparation?",
-    answer: "Yes. The website sections include Study in Germany, Find Admissions, and Visa Application support. This prototype keeps those workflows static for now.",
+    answer: "Yes. Alpha Deutsch supports students with Study in Germany guidance, Find Admissions direction, and Visa Application preparation.",
   },
   {
     question: "Is the result portal active?",
-    answer: "Not yet. The Result Portal preview is a frontend mockup only and will connect to a NestJS backend later.",
+    answer: "The Result Portal is designed for students to check results with their registration number, course, date of birth, and exam sitting.",
   },
 ];

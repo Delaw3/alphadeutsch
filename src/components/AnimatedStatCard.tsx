@@ -34,20 +34,34 @@ export function AnimatedStatCard({ value, label, variant = "surface" }: Animated
       return;
     }
 
+    const startCounter = () => setHasStarted(true);
+
+    const waitForHomeLoader = () => {
+      if (variant !== "hero" || !document.querySelector("[data-home-loader='true']")) {
+        startCounter();
+        return;
+      }
+
+      window.addEventListener("alpha-deutsch-home-loader-complete", startCounter, { once: true });
+    };
+
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
-          setHasStarted(true);
+          waitForHomeLoader();
           observer.disconnect();
         }
       },
-      { threshold: 0.45 },
+      { rootMargin: "0px 0px -8% 0px", threshold: variant === "hero" ? 0.1 : 0.45 },
     );
 
     observer.observe(node);
 
-    return () => observer.disconnect();
-  }, []);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("alpha-deutsch-home-loader-complete", startCounter);
+    };
+  }, [variant]);
 
   useEffect(() => {
     if (!hasStarted) {

@@ -38,7 +38,9 @@ export default function StudyInGermanyPage() {
             {["German level goal", "Admissions support", "Visa application prep"].map((item) => (
               <div key={item} className="rounded-3xl bg-white/10 p-5">
                 <p className="text-xl font-black">{item}</p>
-                <p className="mt-3 text-sm leading-6 text-slate-300">Static prototype content now, ready for NestJS-backed workflows later.</p>
+                <p className="mt-3 text-sm leading-6 text-slate-300">
+                  Get clear guidance, organized steps, and focused support as you prepare for opportunities in Germany.
+                </p>
               </div>
             ))}
           </div>

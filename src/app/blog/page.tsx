@@ -32,7 +32,7 @@ export default function BlogPage() {
         <SectionHeader
           eyebrow="Our Blog"
           title="German learning, study guidance, and Alpha Deutsch updates"
-          description="This is a static blog preview for the frontend prototype. Later, NestJS can power real posts, categories, images, authors, and publishing workflows."
+          description="Helpful notes for German learners, students planning Germany pathways, and families preparing for language success."
         />
         {/* Future NestJS integration: replace static posts with CMS/blog API content. */}
         <div className="mt-10 grid gap-5 md:grid-cols-3">

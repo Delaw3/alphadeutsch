@@ -59,12 +59,12 @@ export function Hero() {
             alt=""
             aria-hidden="true"
             className={`absolute inset-0 h-full w-full object-cover transition-all duration-1000 ease-out ${
-              index === activeSlide ? "scale-100 opacity-45" : "scale-105 opacity-0"
+              index === activeSlide ? "scale-100 opacity-62" : "scale-105 opacity-0"
             }`}
           />
         ))}
-        <div className="absolute inset-0 bg-[#0a1224]/68" />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#0a1224]/80 via-transparent to-[#0a1224]/45" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_18%,rgba(255,206,69,0.26),transparent_30rem),radial-gradient(circle_at_82%_10%,rgba(221,31,45,0.28),transparent_28rem),linear-gradient(135deg,rgba(10,18,36,0.58),rgba(24,32,47,0.48)_48%,rgba(10,18,36,0.62))]" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#0a1224]/70 via-[#0a1224]/20 to-[#0a1224]/25" />
       </div>
       <div className="absolute inset-x-0 top-0 h-1 flag-strip" />
       <div className="container-shell relative z-10 flex min-h-[calc(100vh-124px)] items-center justify-center py-12 text-center sm:py-16 lg:py-20">

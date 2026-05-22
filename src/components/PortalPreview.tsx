@@ -86,7 +86,7 @@ export function PortalPreview() {
 
           <h2 className="mt-6 text-center text-xl font-black text-[#0a1224]">Student&apos;s Result Portal</h2>
           <p className="mx-auto mt-2 max-w-md text-center text-sm leading-6 text-slate-500">
-            Enter your registration details to preview result access. This form is static for now.
+            Enter your registration number, course, date of birth, and sitting to check your Alpha Deutsch result.
           </p>
 
           {/* Future NestJS integration: submit registration number, course, date of birth, and sitting to result lookup endpoint. */}
@@ -145,7 +145,7 @@ export function PortalPreview() {
           <div className="mt-6 flex justify-center">
             <button
               type="button"
-              className="focus-ring min-h-12 rounded-full bg-indigo-500 px-8 py-3 text-sm font-black text-white shadow-lg shadow-indigo-500/30 transition hover:-translate-y-0.5 hover:bg-indigo-600 hover:shadow-xl hover:shadow-indigo-500/30"
+              className="focus-ring min-h-12 rounded-full bg-[#ffce45] px-8 py-3 text-sm font-black text-black shadow-lg shadow-yellow-900/20 transition hover:-translate-y-0.5 hover:bg-[#f3bd22] hover:shadow-xl hover:shadow-yellow-900/25"
             >
               Check Result
             </button>
