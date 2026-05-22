@@ -1,0 +1,266 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f7f8fb;
+  --foreground: #101828;
+  --navy: #0a1224;
+  --charcoal: #18202f;
+  --red: #dd1f2d;
+  --gold: #ffce45;
+}
+
+html.dark {
+  --background: #080f1f;
+  --foreground: #e6edf7;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(circle at 8% 0%, rgba(255, 206, 69, 0.3), transparent 26rem),
+    radial-gradient(circle at 92% 12%, rgba(221, 31, 45, 0.13), transparent 24rem),
+    linear-gradient(135deg, #ffffff 0%, #fff8df 24%, #f7f8fb 48%, #eef2f8 72%, #ffffff 100%);
+  background-attachment: fixed;
+  color: var(--foreground);
+  font-family:
+    Inter,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  transition: background 240ms ease, color 240ms ease;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+summary {
+  font: inherit;
+}
+
+::selection {
+  background: rgba(255, 206, 69, 0.45);
+}
+
+.container-shell {
+  width: min(1120px, calc(100% - 32px));
+  margin-inline: auto;
+}
+
+.flag-strip {
+  background: linear-gradient(90deg, #111111 0 33%, var(--red) 33% 66%, var(--gold) 66% 100%);
+}
+
+.surface {
+  border: 1px solid rgba(16, 24, 40, 0.08);
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow: 0 20px 60px rgba(15, 23, 42, 0.08);
+}
+
+.dark-surface {
+  background: linear-gradient(135deg, var(--navy), var(--charcoal));
+  color: #ffffff;
+  box-shadow: 0 24px 80px rgba(10, 18, 36, 0.24);
+}
+
+.focus-ring {
+  outline: none;
+}
+
+.focus-ring:focus-visible {
+  box-shadow: 0 0 0 4px rgba(255, 206, 69, 0.45);
+}
+
+.reveal-section {
+  opacity: 0;
+  transform: translateY(28px);
+  filter: blur(8px);
+  transition:
+    opacity 700ms ease,
+    transform 700ms ease,
+    filter 700ms ease;
+}
+
+.reveal-section.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+  filter: blur(0);
+}
+
+.portal-form-card {
+  animation: portal-card-in 620ms ease both;
+}
+
+.portal-field {
+  animation: portal-field-in 520ms ease both;
+}
+
+.portal-field:nth-of-type(2) {
+  animation-delay: 80ms;
+}
+
+.portal-field:nth-of-type(3) {
+  animation-delay: 160ms;
+}
+
+.portal-field:nth-of-type(4) {
+  animation-delay: 240ms;
+}
+
+@keyframes portal-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes portal-field-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.site-logo-white {
+  display: none;
+}
+
+html.dark .site-logo-dark {
+  display: none;
+}
+
+html.dark .site-logo-white {
+  display: block;
+}
+
+.theme-toggle-mark {
+  display: block;
+  width: 18px;
+  height: 18px;
+  border: 2px solid #0a1224;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #0a1224 0 50%, #ffce45 50% 100%);
+  transition: transform 240ms ease, border-color 240ms ease;
+}
+
+html.dark .theme-toggle-mark {
+  border-color: #ffce45;
+  transform: rotate(180deg);
+}
+
+html.dark body {
+  background:
+    radial-gradient(circle at 8% 0%, rgba(255, 206, 69, 0.16), transparent 28rem),
+    radial-gradient(circle at 88% 16%, rgba(221, 31, 45, 0.2), transparent 26rem),
+    linear-gradient(135deg, #050914 0%, var(--navy) 34%, var(--charcoal) 66%, #080f1f 100%);
+  color: var(--foreground);
+}
+
+html.dark .site-header {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: rgba(8, 15, 31, 0.9);
+}
+
+html.dark .surface {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: rgba(15, 23, 42, 0.88);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.24);
+}
+
+html.dark .bg-white {
+  background-color: #0f172a !important;
+}
+
+html.dark .bg-slate-50,
+html.dark .bg-slate-100 {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+html.dark .border-slate-200,
+html.dark .border-slate-200\/70 {
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+html.dark .text-\[\#0a1224\],
+html.dark .text-\[\#101828\],
+html.dark .text-slate-700,
+html.dark .text-slate-600,
+html.dark .text-slate-500,
+html.dark .text-slate-900 {
+  color: #e6edf7 !important;
+}
+
+html.dark .text-slate-300,
+html.dark .text-slate-400 {
+  color: #cbd5e1 !important;
+}
+
+html.dark .theme-toggle,
+html.dark .menu-toggle {
+  background: rgba(255, 255, 255, 0.08);
+  color: #e6edf7;
+}
+
+html.dark .menu-toggle span span {
+  background-color: #ffffff;
+}
+
+html.dark .portal-form-card {
+  background: rgba(15, 23, 42, 0.92);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.34);
+}
+
+html.dark .portal-field {
+  border-color: rgba(129, 140, 248, 0.35);
+  background: rgba(255, 255, 255, 0.08);
+  color: #e6edf7;
+}
+
+html.dark .portal-field input,
+html.dark .portal-field select {
+  background: transparent;
+  color: #e6edf7;
+}
+
+html.dark .portal-field input::placeholder {
+  color: #94a3b8;
+}
+
+html.dark .portal-field option {
+  background: #0f172a;
+  color: #e6edf7;
+}
+
+html.dark .portal-field > span:first-child {
+  border-color: rgba(129, 140, 248, 0.3);
+  background: rgba(129, 140, 248, 0.12);
+}
+
+html.dark .portal-notice {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.08);
+}
