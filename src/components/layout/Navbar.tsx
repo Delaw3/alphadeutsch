@@ -15,42 +15,62 @@ const navItems = [
   { href: "/contact", label: "Contact" },
 ];
 
+function applyTheme(nextTheme: "light" | "dark") {
+  const root = document.documentElement;
+
+  root.classList.remove("light", "dark");
+  root.classList.add(nextTheme);
+  root.dataset.theme = nextTheme;
+
+  try {
+    window.localStorage.setItem("alpha-deutsch-theme", nextTheme);
+  } catch {
+    // Theme should still switch even if browser storage is blocked.
+  }
+}
+
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [theme, setTheme] = useState<"light" | "dark">("light");
 
   useEffect(() => {
-    const storedTheme = window.localStorage.getItem("alpha-deutsch-theme");
+    const storedTheme = (() => {
+      try {
+        return window.localStorage.getItem("alpha-deutsch-theme");
+      } catch {
+        return null;
+      }
+    })();
     const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
     const nextTheme = storedTheme === "dark" || (!storedTheme && prefersDark) ? "dark" : "light";
 
     setTheme(nextTheme);
-    document.documentElement.classList.toggle("dark", nextTheme === "dark");
+    applyTheme(nextTheme);
   }, []);
 
   function toggleTheme() {
-    const nextTheme = theme === "dark" ? "light" : "dark";
+    const currentTheme = document.documentElement.classList.contains("dark") ? "dark" : "light";
+    const nextTheme = currentTheme === "dark" ? "light" : "dark";
 
     setTheme(nextTheme);
-    window.localStorage.setItem("alpha-deutsch-theme", nextTheme);
-    document.documentElement.classList.toggle("dark", nextTheme === "dark");
+    applyTheme(nextTheme);
   }
 
   return (
     <header className="site-header sticky top-0 z-50 border-b border-slate-200/70 bg-white/88 backdrop-blur-xl">
       <div className="flag-strip h-1" />
       <nav className="container-shell flex items-center justify-between gap-4 py-3 lg:py-1.5">
-        <Link href="/" className="focus-ring flex items-center gap-3 rounded-full" onClick={() => setIsOpen(false)}>
+        <Link href="/" className="focus-ring relative z-0 flex items-center gap-3 rounded-full" onClick={() => setIsOpen(false)}>
           <span className="relative block h-14 w-56 overflow-visible sm:h-16 sm:w-64 lg:h-16 lg:w-64">
             <img
               src={siteConfig.logos.lightTheme}
               alt="Alpha Deutsch"
-              className="site-logo-dark h-full w-full scale-[1.62] object-contain object-left origin-left lg:scale-150"
+              className="site-logo-dark pointer-events-none h-full w-full scale-[1.62] object-contain object-left origin-left lg:scale-150"
             />
             <img
               src={siteConfig.logos.darkTheme}
               alt="Alpha Deutsch"
-              className="site-logo-white h-full w-full scale-[1.62] object-contain object-left origin-left lg:scale-150"
+              className="site-logo-white pointer-events-none h-full w-full scale-[1.62] object-contain object-left origin-left lg:scale-150"
             />
           </span>
         </Link>
@@ -67,7 +87,7 @@ export function Navbar() {
           ))}
         </div>
 
-        <div className="hidden items-center gap-3 lg:flex">
+        <div className="relative z-10 hidden items-center gap-3 lg:flex">
           <button
             type="button"
             onClick={toggleTheme}
@@ -82,7 +102,7 @@ export function Navbar() {
           </ButtonLink>
         </div>
 
-        <div className="flex items-center gap-2 lg:hidden">
+        <div className="relative z-10 flex items-center gap-2 lg:hidden">
           <button
             type="button"
             onClick={toggleTheme}

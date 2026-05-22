@@ -7,6 +7,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteConfig.url),
+  applicationName: "Alpha Deutsch",
   title: {
     default: "Alpha Deutsch | Your Future in Germany Could Start Here",
     template: "%s | Alpha Deutsch",

@@ -87,6 +87,14 @@ summary {
   box-shadow: 0 0 0 4px rgba(255, 206, 69, 0.45);
 }
 
+.advanced-feature-link {
+  color: #ff9f0a !important;
+}
+
+.advanced-feature-link:hover {
+  color: #dd1f2d !important;
+}
+
 .reveal-section {
   opacity: 1;
   transform: none;
