@@ -1,36 +1,65 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * Design tokens: near-white surfaces, dark readable text, subtle neutral
+ * borders, and one restrained brand accent (gold). The `.dark` overrides let
+ * the same utilities flip theme without per-component `dark:` variants.
+ */
 :root {
-  --background: #f7f8fb;
+  color-scheme: light;
+  --app-bg: #f6f7f9;
+  --app-surface: #ffffff;
+  --app-surface-2: #f2f4f7;
+  --app-text: #101828;
+  --app-muted: #475467;
+  --app-border: #e4e7ec;
+  --app-accent: #ffce45;
+  --app-on-accent: #0a1224;
+  --app-inverse: #0a1224;
+  --app-inverse-text: #ffffff;
+
+  /* Legacy aliases kept for any stray references. */
+  --background: #f6f7f9;
   --foreground: #101828;
-  --navy: #0a1224;
-  --charcoal: #18202f;
-  --red: #dd1f2d;
-  --gold: #ffce45;
 }
 
-html.dark {
-  --background: #080f1f;
-  --foreground: #e6edf7;
+.dark {
   color-scheme: dark;
+  --app-bg: #0a0e17;
+  --app-surface: #121929;
+  --app-surface-2: #1c2436;
+  --app-text: #f2f4f7;
+  --app-muted: #98a2b3;
+  --app-border: #2a344a;
+  --app-accent: #ffce45;
+  --app-on-accent: #0a1224;
+  --app-inverse: #f2f4f7;
+  --app-inverse-text: #0a1224;
+}
+
+@theme inline {
+  --color-app-bg: var(--app-bg);
+  --color-app-surface: var(--app-surface);
+  --color-app-surface-2: var(--app-surface-2);
+  --color-app-text: var(--app-text);
+  --color-app-muted: var(--app-muted);
+  --color-app-border: var(--app-border);
+  --color-app-accent: var(--app-accent);
+  --color-app-on-accent: var(--app-on-accent);
+  --color-app-inverse: var(--app-inverse);
+  --color-app-inverse-text: var(--app-inverse-text);
 }
 
 * {
   box-sizing: border-box;
 }
 
-html {
-  scroll-behavior: smooth;
-}
-
 body {
   margin: 0;
-  background:
-    radial-gradient(circle at 8% 0%, rgba(255, 206, 69, 0.3), transparent 26rem),
-    radial-gradient(circle at 92% 12%, rgba(221, 31, 45, 0.13), transparent 24rem),
-    linear-gradient(135deg, #ffffff 0%, #fff8df 24%, #f7f8fb 48%, #eef2f8 72%, #ffffff 100%);
-  background-attachment: fixed;
-  color: var(--foreground);
+  background: var(--app-bg);
+  color: var(--app-text);
   font-family:
     Inter,
     ui-sans-serif,
@@ -38,45 +67,40 @@ body {
     -apple-system,
     BlinkMacSystemFont,
     "Segoe UI",
-    sans-serif;
+    sans-serif; 
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
-  transition: background 240ms ease, color 240ms ease;
 }
 
 a {
-  color: inherit;
-  text-decoration: none;
+  /* Note: intentionally no unlayered color/font overrides here — Tailwind v4
+     utilities live in cascade layers, and unlayered rules would beat them
+     (this previously made <Link> text colors lose to `color: inherit`).
+     Preflight already inherits anchor color inside @layer base. */
 }
 
-button,
-summary {
-  font: inherit;
+button {
+  /* Font resets come from Tailwind preflight (@layer base) so utilities like
+     `text-sm` / `font-black` still win on buttons. */
 }
 
 ::selection {
   background: rgba(255, 206, 69, 0.45);
 }
 
-.container-shell {
-  width: min(1120px, calc(100% - 32px));
-  margin-inline: auto;
+/* Indeterminate top progress bar shown during route navigation. */
+@keyframes nav-progress-slide {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(350%);
+  }
 }
 
-.flag-strip {
-  background: linear-gradient(90deg, #111111 0 33%, var(--red) 33% 66%, var(--gold) 66% 100%);
-}
-
-.surface {
-  border: 1px solid rgba(16, 24, 40, 0.08);
-  background: rgba(255, 255, 255, 0.86);
-  box-shadow: 0 20px 60px rgba(15, 23, 42, 0.08);
-}
-
-.dark-surface {
-  background: linear-gradient(135deg, var(--navy), var(--charcoal));
-  color: #ffffff;
-  box-shadow: 0 24px 80px rgba(10, 18, 36, 0.24);
+.nav-progress-bar {
+  border-radius: 9999px;
+  animation: nav-progress-slide 1.1s ease-in-out infinite;
 }
 
 .focus-ring {
@@ -87,310 +111,21 @@ summary {
   box-shadow: 0 0 0 4px rgba(255, 206, 69, 0.45);
 }
 
-.advanced-feature-link {
-  color: #ff9f0a !important;
+.mobile-app-shell {
+  min-height: 100dvh;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
-.advanced-feature-link:hover {
-  color: #dd1f2d !important;
+.mobile-app-main {
+  min-height: 60dvh;
 }
 
-.reveal-section {
-  opacity: 1;
-  transform: none;
-  filter: none;
+.mobile-safe-area {
+  padding-left: max(env(safe-area-inset-left, 0px), 0px);
+  padding-right: max(env(safe-area-inset-right, 0px), 0px);
 }
 
-.reveal-section.is-ready {
-  opacity: 0;
-  transform: translateY(28px);
-  filter: blur(8px);
-  transition:
-    opacity 700ms ease,
-    transform 700ms ease,
-    filter 700ms ease;
-}
-
-.reveal-section.is-ready.is-visible {
-  opacity: 1;
-  transform: translateY(0);
-  filter: blur(0);
-}
-
-.portal-form-card {
-  animation: portal-card-in 620ms ease both;
-}
-
-.portal-field {
-  animation: portal-field-in 520ms ease both;
-}
-
-.portal-field:nth-of-type(2) {
-  animation-delay: 80ms;
-}
-
-.portal-field:nth-of-type(3) {
-  animation-delay: 160ms;
-}
-
-.portal-field:nth-of-type(4) {
-  animation-delay: 240ms;
-}
-
-.home-loader {
-  background:
-    radial-gradient(circle at 18% 18%, rgba(255, 206, 69, 0.26), transparent 20rem),
-    radial-gradient(circle at 82% 22%, rgba(221, 31, 45, 0.24), transparent 24rem),
-    linear-gradient(135deg, #050914 0%, #0a1224 48%, #18202f 100%);
-}
-
-.home-loader::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background-image:
-    linear-gradient(rgba(255, 255, 255, 0.045) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.045) 1px, transparent 1px);
-  background-size: 48px 48px;
-  mask-image: radial-gradient(circle at center, black, transparent 72%);
-  pointer-events: none;
-}
-
-.home-loader-exit {
-  opacity: 0;
-  transform: scale(1.02);
-  pointer-events: none;
-}
-
-.home-loader-flag {
-  position: relative;
-  isolation: isolate;
-}
-
-.home-loader-flag::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.38), transparent);
-  transform: translateX(-120%);
-  animation: flag-loader-shine 1.35s ease-in-out infinite;
-}
-
-.loader-band {
-  height: 33.333%;
-  transform-origin: left;
-  animation: flag-band-slide 1.12s cubic-bezier(0.22, 1, 0.36, 1) infinite alternate;
-}
-
-.loader-band-black {
-  background: #111111;
-}
-
-.loader-band-red {
-  background: #dd1f2d;
-  animation-delay: 120ms;
-}
-
-.loader-band-gold {
-  background: #ffce45;
-  animation-delay: 240ms;
-}
-
-@keyframes flag-band-slide {
-  from {
-    transform: scaleX(0.22);
-    opacity: 0.65;
-  }
-  to {
-    transform: scaleX(1);
-    opacity: 1;
-  }
-}
-
-@keyframes flag-loader-shine {
-  55%,
-  100% {
-    transform: translateX(120%);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .home-loader,
-  .loader-band,
-  .home-loader-flag::after {
-    animation: none;
-    transition: none;
-  }
-
-  .loader-band {
-    transform: scaleX(1);
-  }
-}
-
-.gallery-polaroid {
-  animation: gallery-float-in 720ms ease both;
-  transform-origin: center;
-}
-
-.gallery-polaroid:nth-child(2) {
-  animation-delay: 90ms;
-}
-
-.gallery-polaroid:nth-child(3) {
-  animation-delay: 180ms;
-}
-
-.gallery-polaroid:nth-child(4) {
-  animation-delay: 270ms;
-}
-
-@keyframes gallery-float-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes portal-card-in {
-  from {
-    opacity: 0;
-    transform: translateY(20px) scale(0.98);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-@keyframes portal-field-in {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.site-logo-white {
-  display: none;
-}
-
-html.dark .site-logo-dark {
-  display: none;
-}
-
-html.dark .site-logo-white {
-  display: block;
-}
-
-.theme-toggle-mark {
-  display: block;
-  width: 18px;
-  height: 18px;
-  border: 2px solid #0a1224;
-  border-radius: 999px;
-  background: linear-gradient(90deg, #0a1224 0 50%, #ffce45 50% 100%);
-  transition: transform 240ms ease, border-color 240ms ease;
-}
-
-html.dark .theme-toggle-mark {
-  border-color: #ffce45;
-  transform: rotate(180deg);
-}
-
-html.dark body {
-  background:
-    radial-gradient(circle at 8% 0%, rgba(255, 206, 69, 0.16), transparent 28rem),
-    radial-gradient(circle at 88% 16%, rgba(221, 31, 45, 0.2), transparent 26rem),
-    linear-gradient(135deg, #050914 0%, var(--navy) 34%, var(--charcoal) 66%, #080f1f 100%);
-  color: var(--foreground);
-}
-
-html.dark .site-header {
-  border-color: rgba(255, 255, 255, 0.12);
-  background: rgba(8, 15, 31, 0.9);
-}
-
-html.dark .surface {
-  border-color: rgba(255, 255, 255, 0.12);
-  background: rgba(15, 23, 42, 0.88);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.24);
-}
-
-html.dark .bg-white {
-  background-color: #0f172a !important;
-}
-
-html.dark .bg-slate-50,
-html.dark .bg-slate-100 {
-  background-color: rgba(255, 255, 255, 0.08) !important;
-}
-
-html.dark .border-slate-200,
-html.dark .border-slate-200\/70 {
-  border-color: rgba(255, 255, 255, 0.12) !important;
-}
-
-html.dark .text-\[\#0a1224\],
-html.dark .text-\[\#101828\],
-html.dark .text-slate-700,
-html.dark .text-slate-600,
-html.dark .text-slate-500,
-html.dark .text-slate-900 {
-  color: #e6edf7 !important;
-}
-
-html.dark .text-slate-300,
-html.dark .text-slate-400 {
-  color: #cbd5e1 !important;
-}
-
-html.dark .theme-toggle,
-html.dark .menu-toggle {
-  background: rgba(255, 255, 255, 0.08);
-  color: #e6edf7;
-}
-
-html.dark .menu-toggle span span {
-  background-color: #ffffff;
-}
-
-html.dark .portal-form-card {
-  background: rgba(15, 23, 42, 0.92);
-  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.34);
-}
-
-html.dark .portal-field {
-  border-color: rgba(129, 140, 248, 0.35);
-  background: rgba(255, 255, 255, 0.08);
-  color: #e6edf7;
-}
-
-html.dark .portal-field input,
-html.dark .portal-field select {
-  background: transparent;
-  color: #e6edf7;
-}
-
-html.dark .portal-field input::placeholder {
-  color: #94a3b8;
-}
-
-html.dark .portal-field option {
-  background: #0f172a;
-  color: #e6edf7;
-}
-
-html.dark .portal-field > span:first-child {
-  border-color: rgba(129, 140, 248, 0.3);
-  background: rgba(129, 140, 248, 0.12);
-}
-
-html.dark .portal-notice {
-  border-color: rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.08);
+.mobile-bottom-nav {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }

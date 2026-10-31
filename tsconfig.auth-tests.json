@@ -1,0 +1,29 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["es2022"],
+    "types": ["node"],
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "ignoreDeprecations": "6.0",
+    "strict": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "outDir": "tests/build/auth",
+    "rootDir": "src/lib/auth",
+    "declaration": false,
+    "sourceMap": false,
+    "paths": {}
+  },
+  "include": [
+    "src/lib/auth/auth-errors.ts",
+    "src/lib/auth/passwords.ts",
+    "src/lib/auth/rate-limit.ts",
+    "src/lib/auth/verification.ts",
+    "src/lib/auth/sessions.ts",
+    "src/lib/auth/dev-mailer.ts",
+    "src/lib/auth/mysql-students.ts",
+    "src/lib/auth/auth-store-config.ts",
+    "src/lib/auth/auth-service.ts"
+  ]
+}

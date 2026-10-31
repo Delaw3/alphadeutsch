@@ -5,7 +5,7 @@ const eslintConfig = [
   eslint.configs.recommended,
   ...tseslint.configs.recommended,
   {
-    ignores: [".next/**", "out/**", "build/**", "next-env.d.ts"],
+    ignores: [".next/**", "out/**", "build/**", "next-env.d.ts", "tests/build/**", "tests/**/*.mjs", "tests/**/*.cjs"],
   },
   {
     files: ["**/*.{ts,tsx}"],
