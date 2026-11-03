@@ -12,8 +12,8 @@ export default function AppLayout({
 }>) {
   return (
     <div className="mobile-app-shell min-h-dvh bg-app-bg text-app-text">
-      <MobileAppHeader />
-      <main className="mobile-app-main pb-[calc(6.5rem+env(safe-area-inset-bottom,0px))]">{children}</main>
+      {/* <MobileAppHeader /> */}
+      <main className="mobile-app-main pt-[max(env(safe-area-inset-top),0px)] pb-[calc(6.5rem+env(safe-area-inset-bottom,0))]">{children}</main>
       <MobileBottomNav />
     </div>
   );

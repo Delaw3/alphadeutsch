@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { Lock, AlertTriangle, GraduationCap, BookOpen } from "lucide-react";
 import { apiFetch, hasSessionToken } from "@/lib/apiFetch";
 import { MobileCard, MobileScreen } from "@/components/mobile/MobileScreen";
 import { MiniSpinner } from "@/components/mobile/MobileLoaders";
@@ -68,7 +69,7 @@ export default function LearningPage() {
     return (
       <MobileScreen eyebrow="My Learning" title="Sign in required">
         <MobileStateCard
-          icon="🔒"
+          icon={<Lock size={24} strokeWidth={2} />}
           title="You are not signed in"
           description="Sign in to view your registrations, results, and payment status."
           action={
@@ -88,7 +89,7 @@ export default function LearningPage() {
     return (
       <MobileScreen eyebrow="My Learning" title="Something went wrong">
         <MobileStateCard
-          icon="⚠️"
+          icon={<AlertTriangle size={24} strokeWidth={2} />}
           title="Could not load your data"
           description="Please check your connection and try again."
           action={
@@ -108,7 +109,7 @@ export default function LearningPage() {
   return (
     <MobileScreen
       eyebrow="My Learning"
-      title={`Hello, ${firstName} 👋`}
+      title={`Hello, ${firstName}`}
       description="Manage your courses, check results, and make payments."
     >
       {/* Payment alert */}
@@ -127,14 +128,14 @@ export default function LearningPage() {
           href="/result"
           className="focus-ring flex min-h-[90px] flex-col items-center justify-center gap-2 rounded-3xl bg-app-accent px-4 text-center font-black text-app-on-accent transition active:scale-[0.98]"
         >
-          <span aria-hidden="true" className="text-2xl">🎓</span>
+          <GraduationCap size={32} strokeWidth={2} />
           <span className="text-[13px]">Check result</span>
         </Link>
         <Link
           href="/my-courses"
           className="focus-ring flex min-h-[90px] flex-col items-center justify-center gap-2 rounded-3xl border border-app-border bg-app-surface px-4 text-center font-black text-app-text transition active:scale-[0.98]"
         >
-          <span aria-hidden="true" className="text-2xl">📘</span>
+          <BookOpen size={32} strokeWidth={2} />
           <span className="text-[13px]">My courses</span>
         </Link>
       </div>

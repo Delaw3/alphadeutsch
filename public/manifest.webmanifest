@@ -1,0 +1,14 @@
+{
+  "name": "Alpha Deutsch",
+  "short_name": "AlphaDeutsch",
+  "description": "German courses, results and registration.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f6f7f9",
+  "theme_color": "#FFC93C",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

@@ -49,13 +49,29 @@ export async function apiFetch<T = unknown>(
       ? JSON.stringify(body)
       : (body as BodyInit | undefined);
 
-  const response = await fetch(url.toString(), {
-    ...rest,
-    method,
-    headers,
-    body: resolvedBody,
-    cache: 'no-store',
-  });
+  const controller = options.signal ? null : new AbortController();
+  const timeoutId = controller
+    ? setTimeout(() => controller.abort(), 10000)
+    : null;
+
+  let response: Response;
+  try {
+    response = await fetch(url.toString(), {
+      ...rest,
+      method,
+      headers,
+      body: resolvedBody,
+      cache: 'no-store',
+      signal: options.signal ?? controller?.signal,
+    });
+  } catch (err) {
+    if (timeoutId) clearTimeout(timeoutId);
+    if (err instanceof DOMException && err.name === 'AbortError') {
+      throw new Error('Request timed out. Please try again.');
+    }
+    throw err;
+  }
+  if (timeoutId) clearTimeout(timeoutId);
 
   if (response.status === 204) return null as T;
 

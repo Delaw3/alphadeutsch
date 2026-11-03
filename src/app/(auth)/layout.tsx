@@ -12,7 +12,7 @@ export default function AuthLayout({
       <div className="w-full max-w-md">
         <div className="flex flex-col items-center gap-2 mb-8">
           <img
-            src="/logos/darkl.png"
+            src="/icon.svg"
             alt="Alpha Deutsch"
             className="h-10 w-auto mb-1"
           />

@@ -16,7 +16,7 @@ export function MobileScreen({
   action?: ReactNode;
 }) {
   return (
-    <div className="mx-auto w-full max-w-lg px-4 pb-28 pt-5">
+    <div className="mx-auto w-full max-w-lg px-4 pb-[16rem] pt-5">
       <p className="text-[11px] font-black uppercase tracking-[0.2em] text-app-muted">{eyebrow}</p>
       <div className="mt-1 flex items-start justify-between gap-3">
         <h1 className="text-2xl font-black leading-tight text-app-text">{title}</h1>

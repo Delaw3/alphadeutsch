@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { apiFetch, hasSessionToken } from "@/lib/apiFetch";
+import { CreditCard, Search, Printer } from "lucide-react";
 import { siteLinks } from "@/lib/constants";
 
 import { MobileCard, MobileScreen } from "@/components/mobile/MobileScreen";
@@ -315,7 +316,7 @@ export default function ResultPage() {
       {/* Unpaid */}
       {resultStatus === "done" && reason === "unpaid" ? (
         <MobileStateCard
-          icon="💳"
+          icon={<CreditCard size={24} strokeWidth={2} />}
           title="Payment required"
           description="To access your results, you must have fully paid your course fees"
           action={<Link
@@ -331,7 +332,7 @@ export default function ResultPage() {
       {/* Not found / not registered */}
       {resultStatus === "done" && (reason === "not-found" || reason === "not-registered" || reason === "no-student") ? (
         <MobileStateCard
-          icon="🔍"
+          icon={<Search size={24} strokeWidth={2} />}
           title="No result found"
           description="No result was found for the selected course and sitting. Please check your selection or contact Alpha Deutsch."
         />
@@ -360,7 +361,7 @@ export default function ResultPage() {
               }}
               className="focus-ring inline-flex min-h-[44px] items-center gap-1 rounded-full border border-app-border bg-app-surface-2 px-4 text-[13px] font-black text-app-text"
             >
-              🖨️ Share
+              <Printer size={16} strokeWidth={2} /> Share
             </button>
           </div>
 

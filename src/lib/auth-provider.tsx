@@ -56,14 +56,9 @@ function Splash() {
   return (
     <div className="mobile-app-shell min-h-dvh bg-app-bg flex flex-col items-center justify-center gap-2">
       <img
-        src="/logos/darkl.png"
+        src="/icon.svg"
         alt="Alpha Deutsch"
-        className="h-10 w-auto dark:hidden"
-      />
-      <img
-        src="/logos/whitel.png"
-        alt="Alpha Deutsch"
-        className="hidden h-10 w-auto dark:block"
+        className="h-10 w-auto"
       />
       <p className="text-xs text-app-muted">Loading…</p>
     </div>
@@ -92,6 +87,12 @@ export function AuthProvider({
 
   useEffect(() => {
     let mounted = true;
+    const safetyTimer = setTimeout(() => {
+      if (mounted) {
+        setState((prev) => (prev === "loading" ? "anonymous" : prev));
+      }
+    }, 5000);
+
     (async () => {
       const token = tokenStorage.get();
       if (!token) {
@@ -113,8 +114,10 @@ export function AuthProvider({
         }
       }
     })();
+
     return () => {
       mounted = false;
+      clearTimeout(safetyTimer);
     };
   }, []);
 

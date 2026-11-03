@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { use, useEffect, useState } from "react";
+import { Search, Wifi, AlertTriangle } from "lucide-react";
 import { MobileRetryButton, MobileStateCard } from "@/components/mobile/MobileStates";
 import { MobileCard, MobileScreen } from "@/components/mobile/MobileScreen";
 import { fetchMobileCourse, formatNaira, isOfflineError, type MobileCourseRow } from "@/lib/mobile-api";
@@ -29,13 +30,13 @@ export default function MobileCourseDetailPage({ params }: { params: Promise<{ i
     return (<MobileScreen eyebrow="Course details" title="Loading course…"><MobileCard><div role="status" aria-live="polite" aria-label="Loading course details" className="animate-pulse"><div className="h-4 w-24 rounded-full bg-app-surface-2" /><div className="mt-3 h-6 w-3/4 rounded-full bg-app-surface-2" /><div className="mt-3 h-3 w-full rounded-full bg-app-surface-2" /><div className="mt-4 h-12 w-full rounded-full bg-app-surface-2" /></div></MobileCard></MobileScreen>);
   }
   if (status === "missing") {
-    return (<MobileScreen eyebrow="Course details" title="Course not found"><MobileStateCard title="Course not found" description="This course does not exist or is no longer available." icon="🔍" action={<Link href="/courses" className="focus-ring inline-flex min-h-[48px] items-center justify-center rounded-full bg-app-accent px-6 text-sm font-black text-app-on-accent">Back to courses</Link>} /></MobileScreen>);
+    return (<MobileScreen eyebrow="Course details" title="Course not found"><MobileStateCard title="Course not found" description="This course does not exist or is no longer available." icon={<Search size={24} strokeWidth={2} />} action={<Link href="/courses" className="focus-ring inline-flex min-h-[48px] items-center justify-center rounded-full bg-app-accent px-6 text-sm font-black text-app-on-accent">Back to courses</Link>} /></MobileScreen>);
   }
   if (status === "offline") {
-    return (<MobileScreen eyebrow="Course details" title="You are offline"><MobileStateCard title="You are offline" description="Connect to the internet to load live course details." icon="📶" action={<MobileRetryButton busy={retrying} onRetry={() => { setStatus("loading"); setReloadKey((v) => v + 1); }} />} /></MobileScreen>);
+    return (<MobileScreen eyebrow="Course details" title="You are offline"><MobileStateCard title="You are offline" description="Connect to the internet to load live course details." icon={<Wifi size={24} strokeWidth={2} />} action={<MobileRetryButton busy={retrying} onRetry={() => { setStatus("loading"); setReloadKey((v) => v + 1); }} />} /></MobileScreen>);
   }
   if (status === "error" || !course) {
-    return (<MobileScreen eyebrow="Course details" title="Details unavailable"><MobileStateCard title="Details unavailable" description="We could not load this course right now. Please try again later." icon="⚠️" action={<MobileRetryButton busy={retrying} onRetry={() => { setStatus("loading"); setReloadKey((v) => v + 1); }} />} /></MobileScreen>);
+    return (<MobileScreen eyebrow="Course details" title="Details unavailable"><MobileStateCard title="Details unavailable" description="We could not load this course right now. Please try again later." icon={<AlertTriangle size={24} strokeWidth={2} />} action={<MobileRetryButton busy={retrying} onRetry={() => { setStatus("loading"); setReloadKey((v) => v + 1); }} />} /></MobileScreen>);
   }
   const closed = course.is_open !== 1;
   return (

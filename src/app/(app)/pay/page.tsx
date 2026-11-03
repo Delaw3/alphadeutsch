@@ -1,5 +1,6 @@
 "use client";
 
+import { CreditCard } from "lucide-react";
 import { MobileCard, MobileScreen } from "@/components/mobile/MobileScreen";
 
 const PAYMENT_URL = "https://portal.alphadeutsch.com/payment.php";
@@ -13,7 +14,7 @@ export default function PayPage() {
     >
       <MobileCard>
         <div className="flex flex-col items-center gap-5 py-4 text-center">
-          <span aria-hidden="true" className="text-5xl">💳</span>
+          <CreditCard size={48} strokeWidth={2} />
           <p className="text-sm leading-6 text-app-muted">
             Payments are processed securely through the Alpha Deutsch portal.
             You will be taken to{" "}

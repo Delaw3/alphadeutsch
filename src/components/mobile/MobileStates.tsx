@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { Smartphone } from "lucide-react";
 import { MiniSpinner } from "./MobileLoaders";
 
 export function MobileLoadingList({ label = "Loading courses…" }: { label?: string }) {
@@ -31,7 +32,7 @@ export function MobileStateCard({
   title: string;
   description: string;
   action?: ReactNode;
-  icon?: string;
+  icon?: ReactNode;
 }) {
   return (
     <section
@@ -39,7 +40,7 @@ export function MobileStateCard({
       className="rounded-3xl border border-app-border bg-app-surface p-6 text-center shadow-[0_16px_40px_rgba(15,23,42,0.08)]"
     >
       <p aria-hidden="true" className="text-3xl">
-        {icon ?? "📱"}
+        {icon ?? <Smartphone size={40} strokeWidth={2} />}
       </p>
       <h2 className="mt-3 text-lg font-black text-app-text">{title}</h2>
       <p className="mx-auto mt-2 max-w-xs text-sm leading-6 text-app-muted">{description}</p>

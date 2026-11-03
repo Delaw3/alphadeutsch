@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { Eye, EyeOff } from "lucide-react";
 
 import { apiFetch, saveSessionToken } from "@/lib/apiFetch";
 import { useAuth } from "@/lib/auth-provider";
@@ -92,7 +93,7 @@ export default function SignInPage() {
             disabled={submitting}
             className="absolute inset-y-0 right-2 flex items-center px-2 text-sm text-app-muted transition hover:text-app-text disabled:opacity-70"
           >
-            {showPassword ? "🙈" : "👁️"}
+            {showPassword ? <EyeOff size={16} strokeWidth={2} /> : <Eye size={16} strokeWidth={2} />}
           </button>
         </div>
       </div>

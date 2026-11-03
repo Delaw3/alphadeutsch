@@ -2,6 +2,17 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import {
+  Search,
+  X,
+  Sun,
+  Moon,
+  Bell,
+  GraduationCap,
+  FileText,
+  BookOpen,
+  CreditCard,
+} from "lucide-react";
 
 import { apiFetch, hasSessionToken } from "@/lib/apiFetch";
 import { features } from "@/lib/features";
@@ -10,30 +21,30 @@ import { MiniSpinner } from "@/components/mobile/MobileLoaders";
 
 type Me = { name: string | null; reg_no?: string | null };
 
-type Announcement = { id: string; title: string; body: string; emoji: string; gradient: string };
+type Announcement = { id: string; title: string; body: string; icon: React.ReactNode; gradient: string };
 
 const ANNOUNCEMENTS: Announcement[] = [
   {
     id: "reg-open",
     title: "Registration open",
     body: "New A1 class starts soon — secure your place.",
-    emoji: "📝",
+    icon: <FileText size={24} strokeWidth={2} />,
     gradient: "from-app-accent/30 to-app-accent/10",
   },
   {
     id: "results-update",
     title: "Results update",
     body: "Check your latest sitting results now.",
-    emoji: "🎓",
+    icon: <GraduationCap size={24} strokeWidth={2} />,
     gradient: "from-blue-500/20 to-blue-500/5",
   },
 ];
 
 const QUICK_ACTIONS = [
-  { id: "check-result", label: "Check result", icon: "🎓", route: "/result" },
-  { id: "register-course", label: "Register", icon: "📝", route: "/register" },
-  { id: "my-courses", label: "My courses", icon: "📘", route: "/my-courses" },
-  { id: "pay", label: "Pay", icon: "💳", route: "/pay" },
+  { id: "check-result", label: "Check result", icon: <GraduationCap size={20} strokeWidth={2} />, route: "/result" },
+  { id: "register-course", label: "Register", icon: <FileText size={20} strokeWidth={2} />, route: "/register" },
+  { id: "my-courses", label: "My courses", icon: <BookOpen size={20} strokeWidth={2} />, route: "/my-courses" },
+  { id: "pay", label: "Pay", icon: <CreditCard size={20} strokeWidth={2} />, route: "/pay" },
 ];
 
 function greetingForHour(hour: number): string {
@@ -42,18 +53,12 @@ function greetingForHour(hour: number): string {
   return "Good evening";
 }
 
-function initialsOf(name: string | null | undefined): string {
-  if (!name) return "AD";
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "AD";
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-}
-
 export default function HomePage() {
   const [me, setMe] = useState<Me | null>(null);
   const [status, setStatus] = useState<"loading" | "ready">("loading");
   const [dismissed, setDismissed] = useState<string[]>([]);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const notifCount = 0;
   const [dark, setDark] = useState(false);
 
@@ -132,40 +137,77 @@ export default function HomePage() {
   return (
     <div className="mx-auto w-full max-w-lg px-4 pb-28 pt-5">
       {/* Header */}
-      <header className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <span className="grid size-11 shrink-0 place-items-center rounded-full bg-app-accent text-sm font-black text-app-on-accent">
-            {initialsOf(me?.name)}
-          </span>
-          <div className="min-w-0">
-            <p className="text-[12px] font-bold text-app-muted">{greeting}</p>
-            <h1 className="truncate text-lg font-black leading-tight text-app-text">
-              {firstName ? firstName : "Welcome"}
-            </h1>
+      <header className="sticky top-0 z-40 bg-app-surface/80 backdrop-blur-xl pt-[max(env(safe-area-inset-top),0px)] flex items-center justify-between gap-3">
+        {searchOpen ? (
+          <div className="flex flex-1 items-center gap-2">
+            <input
+              autoFocus
+              type="search"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search courses, results…"
+              className="focus-ring min-h-[40px] flex-1 rounded-full border border-app-border bg-app-surface px-4 text-sm text-app-text placeholder:text-app-muted"
+            />
+            <button
+              type="button"
+              aria-label="Close search"
+              onClick={() => {
+                setSearchOpen(false);
+                setSearchQuery("");
+              }}
+              className="focus-ring grid size-10 shrink-0 place-items-center rounded-full border border-app-border bg-app-surface text-app-text transition active:scale-95"
+            >
+                <X size={16} strokeWidth={2} />
+            </button>
           </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={toggleTheme}
-            aria-label="Toggle dark mode"
-            className="focus-ring grid size-10 place-items-center rounded-full border border-app-border bg-app-surface text-app-text transition active:scale-95"
-          >
-            {dark ? "☀️" : "🌙"}
-          </button>
-          <button
-            type="button"
-            aria-label="Notifications"
-            className="focus-ring relative grid size-10 place-items-center rounded-full border border-app-border bg-app-surface text-app-text transition active:scale-95"
-          >
-            🔔
-            {notifCount > 0 ? (
-              <span className="absolute -right-0.5 -top-0.5 grid size-4 place-items-center rounded-full bg-red-500 text-[9px] font-black text-white">
-                {notifCount > 9 ? "9+" : notifCount}
-              </span>
-            ) : null}
-          </button>
-        </div>
+        ) : (
+          <>
+            <div className="flex items-center gap-3">
+              <img
+                src="/icon.svg"
+                alt="Profile"
+                className="size-11 shrink-0 rounded-full bg-app-accent object-cover"
+                loading="lazy"
+              />
+              <div className="min-w-0">
+                <p className="text-[12px] font-bold text-app-muted">{greeting}</p>
+                <h1 className="truncate text-lg font-black leading-tight text-app-text">
+                  {firstName ? firstName : "Welcome"}
+                </h1>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                aria-label="Search"
+                onClick={() => setSearchOpen(true)}
+                className="focus-ring grid size-10 place-items-center rounded-full border border-app-border bg-app-surface text-app-text transition active:scale-95"
+              >
+                <Search size={18} strokeWidth={2} />
+              </button>
+              <button
+                type="button"
+                onClick={toggleTheme}
+                aria-label="Toggle dark mode"
+                className="focus-ring grid size-10 place-items-center rounded-full border border-app-border bg-app-surface text-app-text transition active:scale-95"
+              >
+                {dark ? <Sun size={18} strokeWidth={2} /> : <Moon size={18} strokeWidth={2} />}
+              </button>
+              <button
+                type="button"
+                aria-label="Notifications"
+                className="focus-ring relative grid size-10 place-items-center rounded-full border border-app-border bg-app-surface text-app-text transition active:scale-95"
+              >
+                <Bell size={18} strokeWidth={2} />
+                {notifCount > 0 ? (
+                  <span className="absolute -right-0.5 -top-0.5 grid size-4 place-items-center rounded-full bg-red-500 text-[9px] font-black text-white">
+                    {notifCount > 9 ? "9+" : notifCount}
+                  </span>
+                ) : null}
+              </button>
+            </div>
+          </>
+        )}
       </header>
 
       {/* Hero banner */}
@@ -193,7 +235,7 @@ export default function HomePage() {
               className={`flex items-start gap-3 rounded-2xl bg-gradient-to-r ${a.gradient} border border-app-border p-4 shadow-sm transition motion-reduce:transition-none`}
             >
               <span aria-hidden="true" className="text-2xl">
-                {a.emoji}
+                {a.icon}
               </span>
               <div className="min-w-0 flex-1">
                 <p className="text-[13px] font-black text-app-text">{a.title}</p>
@@ -205,7 +247,7 @@ export default function HomePage() {
                 onClick={() => setDismissed((prev) => [...prev, a.id])}
                 className="focus-ring grid size-8 shrink-0 place-items-center rounded-full text-app-muted transition hover:bg-app-surface-2 active:scale-90"
               >
-                ✕
+                <X size={16} strokeWidth={2} />
               </button>
             </div>
           ))}
