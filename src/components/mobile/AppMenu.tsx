@@ -147,15 +147,8 @@ export function AppMenu() {
               id="app-menu-panel"
               className="absolute inset-y-0 right-0 flex w-72 max-w-[85vw] flex-col border-l border-app-border bg-app-surface shadow-[0_24px_60px_rgba(15,23,42,0.18)]"
             >
-              {/* Brand header */}
-              <div className="flex items-center justify-between px-4 pt-[max(env(safe-area-inset-top),1rem)] pb-3">
-                <div className="flex items-center gap-2.5">
-                  <span className="grid size-9 place-items-center rounded-2xl bg-app-accent text-sm font-black text-app-on-accent">A</span>
-                  <div className="leading-tight">
-                    <p className="text-sm font-black text-app-text">Alpha Deutsch</p>
-                    <p className="text-[11px] text-app-muted">Learning app</p>
-                  </div>
-                </div>
+              {/* Close button */}
+              <div className="flex justify-end px-3 pt-[max(env(safe-area-inset-top),1rem)] pb-2">
                 <button
                   type="button"
                   aria-label="Close menu"
