@@ -59,14 +59,23 @@ export async function POST(request: Request) {
     );
 
     if (!student) {
-      return NextResponse.json({ error: "Could not verify your student details." }, { status: 422 });
+      return NextResponse.json(
+        { error: `No student found with registration number "${regNo}".` },
+        { status: 422 },
+      );
     }
     if ((student.status ?? "").trim().toLowerCase() !== "active") {
-      return NextResponse.json({ error: "Could not verify your student details." }, { status: 422 });
+      return NextResponse.json(
+        { error: "This student record is not active. Please contact Alpha Deutsch." },
+        { status: 422 },
+      );
     }
     const studentDob = normalizeDob(student.dob);
     if (!studentDob || studentDob !== dob) {
-      return NextResponse.json({ error: "Could not verify your student details." }, { status: 422 });
+      return NextResponse.json(
+        { error: "Date of birth does not match this registration number." },
+        { status: 422 },
+      );
     }
 
     // The signed-in account's email must match the student record's email.
