@@ -68,7 +68,7 @@ export function AppTopBar() {
 
   return (
     <>
-      <header className="sticky top-0 z-40 bg-app-bg/95 backdrop-blur-xl pt-[max(env(safe-area-inset-top),1.5rem)] pb-3">
+      <header className="sticky top-0 z-40 bg-app-bg pt-[max(env(safe-area-inset-top),2rem)] pb-3">
         <div className="mx-auto flex w-full max-w-lg items-center justify-between gap-3 px-4">
           <div className="flex min-w-0 items-center gap-3">
             <AppMenu />
