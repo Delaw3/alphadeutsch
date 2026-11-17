@@ -18,6 +18,7 @@ import { apiFetch, hasSessionToken } from "@/lib/apiFetch";
 import { features } from "@/lib/features";
 import { MobileCard } from "@/components/mobile/MobileScreen";
 import { MiniSpinner } from "@/components/mobile/MobileLoaders";
+import { AppMenu } from "@/components/mobile/AppMenu";
 
 type Me = { name: string | null; reg_no?: string | null };
 
@@ -135,9 +136,9 @@ export default function HomePage() {
   const visibleAnnouncements = ANNOUNCEMENTS.filter((a) => !dismissed.includes(a.id));
 
   return (
-    <div className="mx-auto w-full max-w-lg px-4 pb-28 pt-5">
-      {/* Header */}
-      <header className="sticky top-0 z-40 bg-app-surface/80 backdrop-blur-xl pt-[max(env(safe-area-inset-top),0px)] flex items-center justify-between gap-3">
+    <div className="mx-auto w-full max-w-lg px-4 pb-28">
+      {/* Header — sticky, full-width bar with safe-area aware padding */}
+      <header className="sticky top-0 z-40 -mx-4 mb-3 flex items-center justify-between gap-3 border-b border-app-border/60 bg-app-bg/95 px-4 pt-[max(env(safe-area-inset-top),0.75rem)] pb-3 backdrop-blur-xl">
         {searchOpen ? (
           <div className="flex flex-1 items-center gap-2">
             <input
@@ -163,12 +164,7 @@ export default function HomePage() {
         ) : (
           <>
             <div className="flex items-center gap-3">
-              <img
-                src="/icon.svg"
-                alt="Profile"
-                className="size-11 shrink-0 rounded-full bg-app-accent object-cover"
-                loading="lazy"
-              />
+              <AppMenu />
               <div className="min-w-0">
                 <p className="text-[12px] font-bold text-app-muted">{greeting}</p>
                 <h1 className="truncate text-lg font-black leading-tight text-app-text">
@@ -211,7 +207,7 @@ export default function HomePage() {
       </header>
 
       {/* Hero banner */}
-      <section className="relative mt-5 overflow-hidden rounded-3xl bg-gradient-to-br from-app-accent via-[#ffd86b] to-[#ffb800] p-6 shadow-[0_20px_50px_rgba(255,200,60,0.25)] motion-reduce:transition-none">
+      <section className="relative mt-2 overflow-hidden rounded-3xl bg-gradient-to-br from-app-accent via-[#ffd86b] to-[#ffb800] p-6 shadow-[0_20px_50px_rgba(255,200,60,0.25)] motion-reduce:transition-none">
         <span
           aria-hidden="true"
           className="pointer-events-none absolute -right-4 -bottom-6 text-[120px] font-black leading-none text-app-on-accent/15"

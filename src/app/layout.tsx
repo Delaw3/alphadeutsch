@@ -44,6 +44,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        {/* iOS Add to Home Screen */}
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-title" content="Alpha Deutsch" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+      </head>
       <body suppressHydrationWarning>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
         <script
