@@ -1,10 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { X, GraduationCap, FileText, BookOpen, CreditCard } from "lucide-react";
 
+import { apiFetch, hasSessionToken } from "@/lib/apiFetch";
+
 type Announcement = { id: string; title: string; body: string; icon: React.ReactNode; gradient: string };
+type Overview = { courses: number; results: number; unpaid: number };
 
 const ANNOUNCEMENTS: Announcement[] = [
   { id: "reg-open", title: "Registration open", body: "New A1 class starts soon — secure your place.", icon: <FileText size={24} strokeWidth={2} />, gradient: "from-app-accent/30 to-app-accent/10" },
@@ -20,7 +23,29 @@ const QUICK_ACTIONS = [
 
 export default function HomePage() {
   const [dismissed, setDismissed] = useState<string[]>([]);
+  const [stats, setStats] = useState<Overview | null>(null);
   const visibleAnnouncements = ANNOUNCEMENTS.filter((a) => !dismissed.includes(a.id));
+
+  useEffect(() => {
+    if (!hasSessionToken()) return;
+    let cancelled = false;
+    apiFetch<Overview>("/api/me/overview")
+      .then((d) => {
+        if (!cancelled) setStats({ courses: d.courses ?? 0, results: d.results ?? 0, unpaid: d.unpaid ?? 0 });
+      })
+      .catch(() => {
+        /* ignore */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const STATS = [
+    { id: "courses", label: "My courses", value: stats?.courses, route: "/my-courses", icon: <BookOpen size={18} strokeWidth={2} /> },
+    { id: "results", label: "Results", value: stats?.results, route: "/result", icon: <GraduationCap size={18} strokeWidth={2} /> },
+    { id: "unpaid", label: "Unpaid", value: stats?.unpaid, route: "/pay", icon: <CreditCard size={18} strokeWidth={2} /> },
+  ];
 
   return (
     <div className="mx-auto w-full max-w-lg px-4 pb-28 pt-3">
@@ -47,20 +72,25 @@ export default function HomePage() {
         </div>
       ) : null}
 
-      <div className="relative mt-5">
-        <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {[
-            { icon: (<svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 6h16v12H4z" /><path d="M8 10h8M8 14h5" /></svg>), label: "0 courses" },
-            { icon: (<svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 3l9 5-9 5-9-5 9-5z" /><path d="M3 12l9 5 9-5" /></svg>), label: "0 results" },
-            { icon: (<svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="6" width="18" height="12" rx="2" /><path d="M3 10h18" /></svg>), label: "Unpaid 0" },
-          ].map((chip) => (
-            <span key={chip.label} className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-app-surface-2 px-4 py-2 text-[12px] font-bold text-app-text">
-              <span aria-hidden="true" className="text-app-muted">{chip.icon}</span>
-              {chip.label}
-            </span>
-          ))}
-        </div>
-        <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-app-bg to-transparent" />
+      <div className="mt-5 grid grid-cols-3 gap-2">
+        {STATS.map((s) => {
+          const isDanger = s.id === "unpaid" && (s.value ?? 0) > 0;
+          return (
+            <Link
+              key={s.id}
+              href={s.route}
+              className="focus-ring flex flex-col items-center rounded-2xl border border-app-border bg-app-surface p-3 text-center transition hover:bg-app-surface-2 active:scale-[0.98]"
+            >
+              <span className="grid size-9 place-items-center rounded-full bg-app-accent/20 text-app-on-accent dark:text-white">
+                {s.icon}
+              </span>
+              <span className={`mt-2 text-lg font-black tabular-nums ${isDanger ? "text-red-600 dark:text-red-400" : "text-app-text"}`}>
+                {s.value === undefined ? "–" : s.value}
+              </span>
+              <span className="text-[11px] font-bold text-app-muted">{s.label}</span>
+            </Link>
+          );
+        })}
       </div>
 
       <section className="mt-6">
