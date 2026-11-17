@@ -15,10 +15,8 @@ import {
 } from "lucide-react";
 
 import { apiFetch, hasSessionToken } from "@/lib/apiFetch";
-import { features } from "@/lib/features";
-import { MobileCard } from "@/components/mobile/MobileScreen";
-import { MiniSpinner } from "@/components/mobile/MobileLoaders";
 import { AppMenu } from "@/components/mobile/AppMenu";
+import { SearchOverlay } from "@/components/mobile/SearchOverlay";
 
 type Me = { name: string | null; reg_no?: string | null };
 
@@ -59,7 +57,6 @@ export default function HomePage() {
   const [status, setStatus] = useState<"loading" | "ready">("loading");
   const [dismissed, setDismissed] = useState<string[]>([]);
   const [searchOpen, setSearchOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
   const notifCount = 0;
   const [dark, setDark] = useState(false);
 
@@ -139,72 +136,48 @@ export default function HomePage() {
     <div className="mx-auto w-full max-w-lg px-4 pb-28">
       {/* Header — sticky, full-width bar with safe-area aware padding */}
       <header className="sticky top-0 z-40 -mx-4 mb-3 flex items-center justify-between gap-3 bg-app-bg/95 px-4 pt-[max(env(safe-area-inset-top),1.5rem)] pb-3 backdrop-blur-xl">
-        {searchOpen ? (
-          <div className="flex flex-1 items-center gap-2">
-            <input
-              autoFocus
-              type="search"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search courses, results…"
-              className="focus-ring min-h-[40px] flex-1 rounded-full border border-app-border bg-app-surface px-4 text-sm text-app-text placeholder:text-app-muted"
-            />
-            <button
-              type="button"
-              aria-label="Close search"
-              onClick={() => {
-                setSearchOpen(false);
-                setSearchQuery("");
-              }}
-              className="focus-ring grid size-10 shrink-0 place-items-center rounded-full border border-app-border bg-app-surface text-app-text transition active:scale-95"
-            >
-                <X size={16} strokeWidth={2} />
-            </button>
+        <div className="flex items-center gap-3">
+          <AppMenu />
+          <div className="min-w-0">
+            <p className="text-[12px] font-bold text-app-muted">{greeting}</p>
+            <h1 className="truncate text-lg font-black leading-tight text-app-text">
+              {firstName ? firstName : "Welcome"}
+            </h1>
           </div>
-        ) : (
-          <>
-            <div className="flex items-center gap-3">
-              <AppMenu />
-              <div className="min-w-0">
-                <p className="text-[12px] font-bold text-app-muted">{greeting}</p>
-                <h1 className="truncate text-lg font-black leading-tight text-app-text">
-                  {firstName ? firstName : "Welcome"}
-                </h1>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                aria-label="Search"
-                onClick={() => setSearchOpen(true)}
-                className="focus-ring grid size-10 place-items-center rounded-full border border-app-border bg-app-surface text-app-text transition active:scale-95"
-              >
-                <Search size={18} strokeWidth={2} />
-              </button>
-              <button
-                type="button"
-                onClick={toggleTheme}
-                aria-label="Toggle dark mode"
-                className="focus-ring grid size-10 place-items-center rounded-full border border-app-border bg-app-surface text-app-text transition active:scale-95"
-              >
-                {dark ? <Sun size={18} strokeWidth={2} /> : <Moon size={18} strokeWidth={2} />}
-              </button>
-              <button
-                type="button"
-                aria-label="Notifications"
-                className="focus-ring relative grid size-10 place-items-center rounded-full border border-app-border bg-app-surface text-app-text transition active:scale-95"
-              >
-                <Bell size={18} strokeWidth={2} />
-                {notifCount > 0 ? (
-                  <span className="absolute -right-0.5 -top-0.5 grid size-4 place-items-center rounded-full bg-red-500 text-[9px] font-black text-white">
-                    {notifCount > 9 ? "9+" : notifCount}
-                  </span>
-                ) : null}
-              </button>
-            </div>
-          </>
-        )}
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            aria-label="Search"
+            onClick={() => setSearchOpen(true)}
+            className="focus-ring grid size-10 place-items-center rounded-full border border-app-border bg-app-surface text-app-text transition active:scale-95"
+          >
+            <Search size={18} strokeWidth={2} />
+          </button>
+          <button
+            type="button"
+            onClick={toggleTheme}
+            aria-label="Toggle dark mode"
+            className="focus-ring grid size-10 place-items-center rounded-full border border-app-border bg-app-surface text-app-text transition active:scale-95"
+          >
+            {dark ? <Sun size={18} strokeWidth={2} /> : <Moon size={18} strokeWidth={2} />}
+          </button>
+          <button
+            type="button"
+            aria-label="Notifications"
+            className="focus-ring relative grid size-10 place-items-center rounded-full border border-app-border bg-app-surface text-app-text transition active:scale-95"
+          >
+            <Bell size={18} strokeWidth={2} />
+            {notifCount > 0 ? (
+              <span className="absolute -right-0.5 -top-0.5 grid size-4 place-items-center rounded-full bg-red-500 text-[9px] font-black text-white">
+                {notifCount > 9 ? "9+" : notifCount}
+              </span>
+            ) : null}
+          </button>
+        </div>
       </header>
+
+      <SearchOverlay open={searchOpen} onClose={() => setSearchOpen(false)} />
 
       {/* Hero banner */}
       <section className="relative mt-2 overflow-hidden rounded-3xl bg-gradient-to-br from-app-accent via-[#ffd86b] to-[#ffb800] p-6 shadow-[0_20px_50px_rgba(255,200,60,0.25)] motion-reduce:transition-none">
