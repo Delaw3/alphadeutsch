@@ -11,6 +11,9 @@ import { formatNaira, type MobileCourseRow } from "@/lib/mobile-api";
 const LEVELS = ["All", "A1", "A2", "B1", "B2", "C1", "Family Reunion"] as const;
 type Level = (typeof LEVELS)[number];
 
+const FILTERS = ["All", "Courses", "My Courses", "Results", "Pages", "Announcements"] as const;
+type Filter = (typeof FILTERS)[number];
+
 const SCREENS: { label: string; route: string; keywords: string }[] = [
   { label: "Home", route: "/home", keywords: "home dashboard start" },
   { label: "Courses", route: "/courses", keywords: "courses catalogue levels prices german" },
@@ -50,7 +53,7 @@ function match(hay: string, q: string): boolean {
 export function SearchOverlay({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [mounted, setMounted] = useState(false);
   const [query, setQuery] = useState("");
-  const [level, setLevel] = useState<Level>("All");
+  const [filter, setFilter] = useState<Filter>("All");
   const [courses, setCourses] = useState<MobileCourseRow[]>([]);
   const [courseStatus, setCourseStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [regs, setRegs] = useState<Reg[]>([]);
@@ -63,7 +66,7 @@ export function SearchOverlay({ open, onClose }: { open: boolean; onClose: () =>
   useEffect(() => {
     if (!open) return;
     setQuery("");
-    setLevel("All");
+    setFilter("All");
   }, [open]);
 
   // Load everything searchable the first time the overlay opens.
@@ -103,17 +106,11 @@ export function SearchOverlay({ open, onClose }: { open: boolean; onClose: () =>
   }, [open, onClose]);
 
   const q = query.trim().toLowerCase();
-  const levelOnly = level !== "All";
 
-  const courseResults = useMemo(
-    () =>
-      courses.filter((c) => {
-        if (levelOnly && levelOf(c.title) !== level) return false;
-        if (!q) return levelOnly;
-        return match(`${c.title} ${c.display} ${c.description}`, q);
-      }),
-    [courses, level, levelOnly, q],
-  );
+  const courseResults = useMemo(() => {
+    if (filter !== "Courses" && q === "") return [];
+    return courses.filter((c) => !q || match(`${c.title} ${c.display} ${c.description}`, q));
+  }, [courses, filter, q]);
 
   const screenResults = useMemo(
     () => SCREENS.filter((s) => !q || match(`${s.label} ${s.keywords}`, q)),
@@ -143,11 +140,11 @@ export function SearchOverlay({ open, onClose }: { open: boolean; onClose: () =>
 
   if (!open || !mounted) return null;
 
-  const showPages = !levelOnly && screenResults.length > 0;
-  const showMyCourses = !levelOnly && myCourseResults.length > 0;
-  const showResults = !levelOnly && resultLinks.length > 0;
-  const showAnnouncements = !levelOnly && announcementResults.length > 0;
-  const showCourses = courseResults.length > 0;
+  const showPages = (filter === "All" || filter === "Pages") && screenResults.length > 0;
+  const showMyCourses = (filter === "All" || filter === "My Courses") && myCourseResults.length > 0;
+  const showResults = (filter === "All" || filter === "Results") && resultLinks.length > 0;
+  const showAnnouncements = (filter === "All" || filter === "Announcements") && announcementResults.length > 0;
+  const showCourses = (filter === "All" || filter === "Courses") && courseResults.length > 0;
   const nothing =
     !showPages && !showMyCourses && !showResults && !showAnnouncements && !showCourses && courseStatus === "ready";
 
@@ -184,25 +181,25 @@ export function SearchOverlay({ open, onClose }: { open: boolean; onClose: () =>
 
           <div
             role="tablist"
-            aria-label="Filter by course level"
+            aria-label="Filter by app section"
             className="mt-3 flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           >
-            {LEVELS.map((lvl) => {
-              const active = lvl === level;
+            {FILTERS.map((item) => {
+              const active = item === filter;
               return (
                 <button
-                  key={lvl}
+                  key={item}
                   type="button"
                   role="tab"
                   aria-selected={active}
-                  onClick={() => setLevel(lvl)}
+                  onClick={() => setFilter(item)}
                   className={`focus-ring inline-flex min-h-[36px] shrink-0 items-center rounded-full px-4 text-[13px] font-black transition ${
                     active
                       ? "bg-app-accent text-app-on-accent"
                       : "bg-app-surface-2 text-app-muted ring-1 ring-app-border"
                   }`}
                 >
-                  {lvl}
+                  {item}
                 </button>
               );
             })}
