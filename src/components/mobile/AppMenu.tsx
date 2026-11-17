@@ -4,46 +4,34 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import {
+  Home,
+  BookOpen,
+  GraduationCap,
+  Award,
+  Library,
+  FileText,
+  CreditCard,
+  User,
+  X,
+  Sun,
+  Moon,
+} from "lucide-react";
 
 type Theme = "light" | "dark";
 
 export const THEME_STORAGE_KEY = "alphadeutsch-theme";
 
 const menuLinks = [
-  { href: "/", label: "Home" },
-  { href: "/courses", label: "Courses" },
-  { href: "/learning", label: "My Learning" },
-  { href: "/result", label: "Check Result" },
-  { href: "/my-courses", label: "My Courses" },
-  { href: "/register", label: "Register" },
-  { href: "/pay", label: "Pay" },
-  { href: "/profile", label: "Profile" },
+  { href: "/home", label: "Home", icon: Home },
+  { href: "/courses", label: "Courses", icon: BookOpen },
+  { href: "/learning", label: "My Learning", icon: GraduationCap },
+  { href: "/result", label: "Check Result", icon: Award },
+  { href: "/my-courses", label: "My Courses", icon: Library },
+  { href: "/register", label: "Register", icon: FileText },
+  { href: "/pay", label: "Pay", icon: CreditCard },
+  { href: "/profile", label: "Profile", icon: User },
 ] as const;
-
-function SunIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-      className="size-4 fill-none stroke-current stroke-[1.8]"
-    >
-      <circle cx="12" cy="12" r="4" />
-      <path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6 7 7M17 17l1.4 1.4M18.4 5.6 17 7M7 17l-1.4 1.4" />
-    </svg>
-  );
-}
-
-function MoonIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-      className="size-4 fill-none stroke-current stroke-[1.8]"
-    >
-      <path d="M20 14.5A8 8 0 0 1 9.5 4 8.2 8.2 0 1 0 20 14.5Z" />
-    </svg>
-  );
-}
 
 function readStoredTheme(): Theme | null {
   if (typeof window === "undefined") return null;
@@ -57,8 +45,6 @@ function readStoredTheme(): Theme | null {
 }
 
 function ThemeSetting() {
-  // The panel only renders after a user interaction (menu is closed during
-  // SSR), so reading the DOM here cannot cause a hydration mismatch.
   const [theme, setTheme] = useState<Theme>(() => {
     const stored = readStoredTheme();
     if (stored) return stored;
@@ -69,36 +55,28 @@ function ThemeSetting() {
   });
 
   function applyTheme(next: Theme) {
-    if (next === theme) return; // idempotent: no duplicate work for the same value
+    if (next === theme) return;
     document.documentElement.classList.toggle("dark", next === "dark");
     try {
       window.localStorage.setItem(THEME_STORAGE_KEY, next);
     } catch {
-      // Ignore storage failures; the in-memory class toggle still applies.
+      // Ignore storage failures.
     }
     setTheme(next);
   }
 
   const options = [
-    { value: "light" as const, label: "Light", icon: <SunIcon /> },
-    { value: "dark" as const, label: "Dark", icon: <MoonIcon /> },
+    { value: "light" as const, label: "Light", Icon: Sun },
+    { value: "dark" as const, label: "Dark", Icon: Moon },
   ];
 
   return (
-    <div className="border-t border-app-border p-3">
-      <p
-        id="app-menu-theme-label"
-        className="px-1 text-[11px] font-black uppercase tracking-[0.16em] text-app-muted"
-      >
-        Theme
-      </p>
-      <div
-        role="group"
-        aria-labelledby="app-menu-theme-label"
-        className="mt-2 grid grid-cols-2 gap-1 rounded-2xl border border-app-border bg-app-surface-2 p-1"
-      >
+    <div>
+      <p className="px-1 text-[11px] font-black uppercase tracking-[0.16em] text-app-muted">Appearance</p>
+      <div className="mt-2 grid grid-cols-2 gap-1 rounded-2xl bg-app-surface-2 p-1 ring-1 ring-app-border">
         {options.map((option) => {
           const active = option.value === theme;
+          const Icon = option.Icon;
           return (
             <button
               key={option.value}
@@ -106,11 +84,11 @@ function ThemeSetting() {
               aria-pressed={active}
               onClick={() => applyTheme(option.value)}
               className={`focus-ring inline-flex min-h-[40px] items-center justify-center gap-1.5 rounded-xl px-3 text-[13px] font-black transition-colors ${
-                active ? "bg-app-accent text-[#0a1224]" : "text-app-muted hover:bg-app-surface-2 hover:text-app-text"
+                active ? "bg-app-accent text-app-on-accent shadow-sm" : "text-app-muted hover:text-app-text"
               }`}
             >
-              {option.icon}
-              {option.label}
+              <Icon size={16} strokeWidth={2} />
+              <span>{option.label}</span>
             </button>
           );
         })}
@@ -119,24 +97,20 @@ function ThemeSetting() {
   );
 }
 
-
 export function AppMenu() {
   const pathname = usePathname() ?? "/";
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
 
-  // Portal target only exists after hydration on the client.
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  // Never leave a stale menu open across navigation.
   useEffect(() => {
     setOpen(false);
   }, [pathname]);
 
-  // Close on Escape key
   useEffect(() => {
     if (!open) return;
     function handleKeyDown(event: KeyboardEvent) {
@@ -146,12 +120,9 @@ export function AppMenu() {
       }
     }
     document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-    };
+    return () => document.removeEventListener("keydown", handleKeyDown);
   }, [open]);
 
-  // Lock body scroll while the menu is open.
   useEffect(() => {
     if (!open) return;
     const prev = document.body.style.overflow;
@@ -165,7 +136,6 @@ export function AppMenu() {
     open && mounted
       ? createPortal(
           <div className="fixed inset-0 z-[999]">
-            {/* Backdrop */}
             <button
               type="button"
               aria-label="Close menu"
@@ -173,53 +143,68 @@ export function AppMenu() {
               onClick={() => setOpen(false)}
               tabIndex={-1}
             />
-            {/* Panel */}
             <div
               id="app-menu-panel"
               className="absolute inset-y-0 right-0 flex w-72 max-w-[85vw] flex-col border-l border-app-border bg-app-surface shadow-[0_24px_60px_rgba(15,23,42,0.18)]"
             >
-              <div className="flex items-center justify-between border-b border-app-border px-4 py-3">
-                <p className="text-[11px] font-black uppercase tracking-[0.18em] text-app-muted">
-                  Menu
-                </p>
+              {/* Brand header */}
+              <div className="flex items-center justify-between px-4 pt-[max(env(safe-area-inset-top),1rem)] pb-3">
+                <div className="flex items-center gap-2.5">
+                  <span className="grid size-9 place-items-center rounded-2xl bg-app-accent text-sm font-black text-app-on-accent">A</span>
+                  <div className="leading-tight">
+                    <p className="text-sm font-black text-app-text">Alpha Deutsch</p>
+                    <p className="text-[11px] text-app-muted">Learning app</p>
+                  </div>
+                </div>
                 <button
                   type="button"
                   aria-label="Close menu"
                   onClick={() => setOpen(false)}
                   className="focus-ring grid size-9 place-items-center rounded-full text-app-muted transition hover:bg-app-surface-2 hover:text-app-text"
                 >
-                  <svg viewBox="0 0 24 24" aria-hidden="true" className="size-5 fill-none stroke-current stroke-2">
-                    <path d="M6 6l12 12M18 6 6 18" />
-                  </svg>
+                  <X size={18} strokeWidth={2} />
                 </button>
               </div>
-              <nav aria-label="Main menu" className="p-2">
+
+              {/* Nav */}
+              <nav aria-label="Main menu" className="flex-1 overflow-y-auto px-3 pb-3">
                 <ul className="grid gap-1">
                   {menuLinks.map((link) => {
-                    const active = pathname === link.href;
+                    const active =
+                      pathname === link.href ||
+                      (link.href !== "/home" && pathname.startsWith(`${link.href}/`));
+                    const Icon = link.icon;
                     return (
                       <li key={link.href}>
                         <Link
                           href={link.href}
                           aria-current={active ? "page" : undefined}
                           onClick={() => setOpen(false)}
-                          className={`focus-ring flex min-h-[44px] items-center justify-between rounded-xl px-3 text-sm font-bold transition ${
+                          className={`group flex items-center gap-3 rounded-2xl px-2.5 py-2 text-sm font-bold transition ${
                             active
-                              ? "bg-app-surface-2 text-app-text"
+                              ? "bg-app-accent/15 text-app-text"
                               : "text-app-muted hover:bg-app-surface-2 hover:text-app-text"
                           }`}
                         >
-                          <span>{link.label}</span>
-                          {active ? (
-                            <span aria-hidden="true" className="size-2 rounded-full bg-app-accent" />
-                          ) : null}
+                          <span
+                            className={`grid size-9 shrink-0 place-items-center rounded-xl transition ${
+                              active
+                                ? "bg-app-accent text-app-on-accent"
+                                : "bg-app-surface-2 text-app-muted group-hover:text-app-text"
+                            }`}
+                          >
+                            <Icon size={18} strokeWidth={2} />
+                          </span>
+                          <span className="flex-1">{link.label}</span>
+                          {active ? <span aria-hidden="true" className="size-2 rounded-full bg-app-accent" /> : null}
                         </Link>
                       </li>
                     );
                   })}
                 </ul>
               </nav>
-              <div className="mt-auto border-t border-app-border p-2">
+
+              <div className="border-t border-app-border p-3">
                 <ThemeSetting />
               </div>
             </div>
@@ -244,11 +229,7 @@ export function AppMenu() {
             : "border-app-border bg-app-surface text-app-text hover:bg-app-surface-2"
         }`}
       >
-        <svg
-          viewBox="0 0 24 24"
-          aria-hidden="true"
-          className="size-5 fill-none stroke-current stroke-2"
-        >
+        <svg viewBox="0 0 24 24" aria-hidden="true" className="size-5 fill-none stroke-current stroke-2">
           {open ? (
             <path d="M6 6l12 12M18 6 6 18" />
           ) : (
