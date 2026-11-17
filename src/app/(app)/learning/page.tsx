@@ -2,12 +2,11 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Lock, AlertTriangle, GraduationCap, Play } from "lucide-react";
+import { Lock, AlertTriangle, Play } from "lucide-react";
 import { apiFetch, hasSessionToken } from "@/lib/apiFetch";
 import { MobileCard, MobileScreen } from "@/components/mobile/MobileScreen";
 import { MiniSpinner } from "@/components/mobile/MobileLoaders";
 import { MobileStateCard } from "@/components/mobile/MobileStates";
-import { useAuth } from "@/lib/auth-provider";
 
 type Me = {
   name: string;
@@ -33,7 +32,6 @@ const VIDEO_TUTORIALS: VideoTutorial[] = [
 ];
 
 export default function LearningPage() {
-  const { signOut } = useAuth();
   const [me, setMe] = useState<Me | null>(null);
   const [regs, setRegs] = useState<RegSummary>([]);
   const [status, setStatus] = useState<Status>("loading");
@@ -154,12 +152,6 @@ export default function LearningPage() {
             <p className="truncate font-black text-app-text">{me?.name}</p>
             <p className="truncate text-[13px] text-app-muted">{me?.email}</p>
           </div>
-        </div>
-        <div className="mt-4 grid gap-2">
-          <Link href="/result" className="focus-ring inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-2xl bg-app-accent text-[13px] font-black text-app-on-accent transition active:scale-[0.98]">
-            <GraduationCap size={18} strokeWidth={2} /> Check result
-          </Link>
-          <button type="button" onClick={signOut} className="focus-ring inline-flex min-h-[44px] w-full items-center justify-center rounded-2xl border border-app-border text-[13px] font-black text-app-muted transition hover:bg-app-surface-2">Sign out</button>
         </div>
       </MobileCard>
     </MobileScreen>
