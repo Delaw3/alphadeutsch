@@ -68,7 +68,7 @@ export default function HomePage() {
         <div className="mt-3 grid grid-cols-4 gap-3">
           {QUICK_ACTIONS.map((action) => (
             <Link key={action.id} href={action.route} className="focus-ring flex flex-col items-center gap-2 transition active:scale-95">
-              <span className="grid size-14 place-items-center rounded-full bg-app-accent/20 text-2xl text-app-on-accent transition">{action.icon}</span>
+              <span className="grid size-14 place-items-center rounded-full bg-app-accent/20 text-2xl text-app-on-accent transition dark:text-white">{action.icon}</span>
               <span className="text-[11px] font-bold text-app-text">{action.label}</span>
             </Link>
           ))}
