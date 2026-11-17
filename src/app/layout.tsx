@@ -54,7 +54,9 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
         <script
           dangerouslySetInnerHTML={{
-            __html: `if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('/sw.js').catch(function(){});});}`,
+            __html: `(function(){if(!('serviceWorker' in navigator))return;var isProd=${JSON.stringify(
+              process.env.NODE_ENV === "production",
+            )};if(isProd){window.addEventListener('load',function(){navigator.serviceWorker.register('/sw.js').catch(function(){});});}else{navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){r.unregister();});}).catch(function(){});if(window.caches&&caches.keys){caches.keys().then(function(keys){keys.forEach(function(k){caches.delete(k);});}).catch(function(){});}}})();`,
           }}
         />
         <div className="mobile-app-shell min-h-dvh bg-app-bg text-app-text">
