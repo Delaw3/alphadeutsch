@@ -101,11 +101,25 @@ export function AppMenu() {
   const pathname = usePathname() ?? "/";
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [rendered, setRendered] = useState(false);
+  const [shown, setShown] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Keep the panel mounted through the close animation, then unmount.
+  useEffect(() => {
+    if (open) {
+      setRendered(true);
+      const id = requestAnimationFrame(() => setShown(true));
+      return () => cancelAnimationFrame(id);
+    }
+    setShown(false);
+    const t = setTimeout(() => setRendered(false), 300);
+    return () => clearTimeout(t);
+  }, [open]);
 
   useEffect(() => {
     setOpen(false);
@@ -133,19 +147,23 @@ export function AppMenu() {
   }, [open]);
 
   const overlay =
-    open && mounted
+    rendered && mounted
       ? createPortal(
           <div className="fixed inset-0 z-[999]">
             <button
               type="button"
               aria-label="Close menu"
-              className="absolute inset-0 h-full w-full cursor-default bg-black/40 backdrop-blur-sm"
+              className={`absolute inset-0 h-full w-full cursor-default bg-black/40 backdrop-blur-sm transition-opacity duration-300 motion-reduce:transition-none ${
+                shown ? "opacity-100" : "opacity-0"
+              }`}
               onClick={() => setOpen(false)}
               tabIndex={-1}
             />
             <div
               id="app-menu-panel"
-              className="absolute inset-y-0 right-0 flex w-72 max-w-[85vw] flex-col border-l border-app-border bg-app-surface shadow-[0_24px_60px_rgba(15,23,42,0.18)]"
+              className={`absolute inset-y-0 right-0 flex w-72 max-w-[85vw] flex-col border-l border-app-border bg-app-surface shadow-[0_24px_60px_rgba(15,23,42,0.18)] transition-transform duration-300 ease-out will-change-transform motion-reduce:transition-none ${
+                shown ? "translate-x-0" : "translate-x-full"
+              }`}
             >
               {/* Close button */}
               <div className="flex justify-end px-3 pt-[max(env(safe-area-inset-top),1rem)] pb-2">
