@@ -14,6 +14,7 @@ export default function AppLayout({
   const pathname = usePathname() ?? "/";
   // Show the shared top bar on the Courses and My Learning screens only.
   const showTopBar =
+    pathname === "/home" ||
     pathname === "/courses" ||
     pathname.startsWith("/courses/") ||
     pathname === "/learning" ||
