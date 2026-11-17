@@ -174,10 +174,11 @@ export function SearchOverlay({ open, onClose }: { open: boolean; onClose: () =>
             </div>
             <button
               type="button"
+              aria-label="Close search"
               onClick={onClose}
-              className="focus-ring inline-flex min-h-[44px] items-center rounded-full px-3 text-sm font-black text-app-text"
+              className="focus-ring grid size-10 shrink-0 place-items-center rounded-full border border-app-border bg-app-surface text-app-text transition active:scale-95"
             >
-              Cancel
+              <X size={18} strokeWidth={2} />
             </button>
           </div>
 
