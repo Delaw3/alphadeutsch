@@ -67,7 +67,7 @@ export function AppTopBar() {
   const greeting = greetingForHour(new Date().getHours());
 
   return (
-    <header className="sticky top-0 z-40 border-b border-app-border/60 bg-app-bg/95 backdrop-blur-xl pt-[max(env(safe-area-inset-top),0.75rem)] pb-3">
+    <header className="sticky top-0 z-40 bg-app-bg/95 backdrop-blur-xl pt-[max(env(safe-area-inset-top),0.75rem)] pb-3">
       <div className="mx-auto flex w-full max-w-lg items-center justify-between gap-3 px-4">
         {searchOpen ? (
           <div className="flex flex-1 items-center gap-2">
