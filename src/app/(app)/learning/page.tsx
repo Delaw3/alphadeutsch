@@ -128,7 +128,7 @@ export default function LearningPage() {
           {VIDEO_TUTORIALS.map((v) => (
             <div key={v.id} className="overflow-hidden rounded-2xl border border-app-border bg-app-surface">
               <div className="relative grid aspect-video place-items-center bg-gradient-to-br from-slate-800 to-slate-900">
-                <span className="grid size-11 place-items-center rounded-full bg-white/95 text-[#0a1224] shadow">
+                <span className="grid size-11 place-items-center rounded-full bg-black/45 text-white ring-1 ring-white/40 backdrop-blur-sm shadow">
                   <Play size={18} strokeWidth={2} fill="currentColor" />
                 </span>
                 <span className="absolute left-2 top-2 rounded-full bg-app-accent px-2 py-0.5 text-[10px] font-black text-app-on-accent">{v.level}</span>
