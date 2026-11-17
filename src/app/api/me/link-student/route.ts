@@ -22,6 +22,7 @@ function resolveToken(request: Request): string | null {
  * POST /api/me/link-student
  * Body: { reg_no, dob }
  * Links the authenticated account to a stud2022 record (verified by reg_no + dob).
+ * The signed-in account's EMAIL must also match the stud2022 record's email.
  * Sets users.stud2022_id and users.role = 'student'. Never derives admin from stud2022.
  * Identity (reg_no) is resolved via the session user only.
  */
@@ -50,8 +51,10 @@ export async function POST(request: Request) {
     const pool = getPool();
 
     // Read-only lookup of the legacy student record (safe column projection only).
-    const [[student]] = await pool.query<(RowDataPacket & { id: number; reg_no: string; dob: string | Date; status: string })[]>(
-      "SELECT id, reg_no, dob, status FROM stud2022 WHERE TRIM(reg_no) = ? LIMIT 1",
+    const [[student]] = await pool.query<
+      (RowDataPacket & { id: number; reg_no: string; dob: string | Date; status: string; email: string | null })[]
+    >(
+      "SELECT id, reg_no, dob, status, email FROM stud2022 WHERE TRIM(reg_no) = ? LIMIT 1",
       [regNo],
     );
 
@@ -64,6 +67,20 @@ export async function POST(request: Request) {
     const studentDob = normalizeDob(student.dob);
     if (!studentDob || studentDob !== dob) {
       return NextResponse.json({ error: "Could not verify your student details." }, { status: 422 });
+    }
+
+    // The signed-in account's email must match the student record's email.
+    const account = await authStores.users.findById(valid.userId);
+    if (!account) {
+      return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
+    }
+    const accountEmail = (account.email ?? "").trim().toLowerCase();
+    const studentEmail = (student.email ?? "").trim().toLowerCase();
+    if (!studentEmail || accountEmail !== studentEmail) {
+      return NextResponse.json(
+        { error: "Your account email does not match the email on this registration number." },
+        { status: 422 },
+      );
     }
 
     // Prevent two accounts claiming the same stud2022 row.
