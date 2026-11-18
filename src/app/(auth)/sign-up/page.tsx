@@ -28,10 +28,17 @@ export default function SignUpPage() {
     setLoggingIn(false);
     setSubmitting(true);
     try {
-      const signupRes = await apiFetch<{ message?: string }>("/api/auth/signup", {
-        method: "POST",
-        body: JSON.stringify({ name: name.trim(), email: email.trim(), password }),
-      });
+      const signupRes = await apiFetch<{ message?: string; needsStudentSetup?: boolean; email?: string }>(
+        "/api/auth/signup",
+        {
+          method: "POST",
+          body: JSON.stringify({ name: name.trim(), email: email.trim(), password }),
+        },
+      );
+      if (signupRes?.needsStudentSetup) {
+        router.push(`/student-setup?email=${encodeURIComponent(signupRes.email ?? email.trim())}`);
+        return;
+      }
       if (signupRes?.message === "already registered, please sign in") {
         setError("This email is already registered. Please sign in.");
         router.push("/sign-in");
