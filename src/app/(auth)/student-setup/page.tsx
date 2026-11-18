@@ -2,8 +2,11 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { CircleCheck } from "lucide-react";
 
 import { apiFetch } from "@/lib/apiFetch";
+import { passwordRequirementMessage } from "@/lib/auth/password-rules";
+import { PasswordInput } from "@/components/mobile/PasswordInput";
 
 export default function StudentSetupPage() {
   const [email, setEmail] = useState("");
@@ -25,7 +28,9 @@ export default function StudentSetupPage() {
   }, []);
 
   const mismatch = confirm.length > 0 && confirm !== password;
-  const tooShort = password.length > 0 && password.length < 10;
+  // Same shared rule the API enforces, so the hint names only what is missing.
+  const passwordMessage = password.length > 0 ? passwordRequirementMessage(password) : null;
+  const passwordValid = password.length > 0 && passwordMessage === null;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -56,7 +61,7 @@ export default function StudentSetupPage() {
         <p className="mt-2 text-sm leading-6 text-app-muted">
           Sign in with <span className="font-black text-app-text">{email}</span> and the new password you just chose.
         </p>
-        <Link href="/sign-in" className="focus-ring mt-5 inline-flex min-h-[52px] w-full items-center justify-center rounded-full bg-app-accent text-sm font-black text-app-on-accent">
+        <Link href={`/sign-in?email=${encodeURIComponent(email)}&notice=setup`} className="focus-ring mt-5 inline-flex min-h-[52px] w-full items-center justify-center rounded-full bg-app-accent text-sm font-black text-app-on-accent">
           Go to sign in
         </Link>
       </>
@@ -65,9 +70,12 @@ export default function StudentSetupPage() {
 
   return (
     <>
-      <h1 className="text-lg font-black text-app-text">Already a student?</h1>
+      <h1 className="flex items-center gap-2 text-lg font-black text-app-text">
+        <CircleCheck aria-hidden="true" strokeWidth={2.5} className="size-5 shrink-0 text-green-600" />
+        You&apos;re already a student
+      </h1>
       <p className="mt-1 text-sm leading-6 text-app-muted">
-        Set up your mobile login using the email and registration details on your student record, then choose a new password.
+        Your record is already with us. Enter the details you registered with and choose a password to complete your mobile login.
       </p>
 
       <form onSubmit={handleSubmit} noValidate className="mt-4 grid gap-3">
@@ -88,13 +96,13 @@ export default function StudentSetupPage() {
 
         <div className="grid gap-1.5">
           <label htmlFor="su-password" className="text-[13px] font-black text-app-text">New password</label>
-          <input id="su-password" type="password" autoComplete="new-password" required minLength={10} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="At least 10 chars: upper, lower, digit, symbol" disabled={submitting} className="focus-ring min-h-[48px] w-full rounded-2xl border border-app-border bg-app-surface-2 px-4 text-sm text-app-text placeholder:text-app-muted disabled:opacity-70" />
-          {tooShort ? <p className="mt-1 text-[12px] text-app-muted">Password must be 10+ chars with upper, lower, digit, and symbol.</p> : null}
+          <PasswordInput id="su-password" autoComplete="new-password" required minLength={10} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="At least 10 chars: upper, lower, digit, symbol" disabled={submitting} aria-describedby={passwordMessage ? "su-password-hint" : undefined} />
+          {passwordMessage ? <p id="su-password-hint" className="mt-1 text-[12px] text-app-muted">{passwordMessage}</p> : null}
         </div>
 
         <div className="grid gap-1.5">
           <label htmlFor="su-confirm" className="text-[13px] font-black text-app-text">Confirm password</label>
-          <input id="su-confirm" type="password" autoComplete="new-password" required value={confirm} onChange={(e) => setConfirm(e.target.value)} disabled={submitting} className="focus-ring min-h-[48px] w-full rounded-2xl border border-app-border bg-app-surface-2 px-4 text-sm text-app-text disabled:opacity-70" />
+          <PasswordInput id="su-confirm" autoComplete="new-password" required value={confirm} onChange={(e) => setConfirm(e.target.value)} disabled={submitting} />
           {mismatch ? <p className="mt-1 text-[12px] text-red-600 dark:text-red-400">Passwords do not match.</p> : null}
         </div>
 
@@ -102,7 +110,7 @@ export default function StudentSetupPage() {
           <p role="alert" aria-live="polite" className="rounded-2xl bg-red-50 px-4 py-3 text-[13px] font-bold text-red-700 dark:bg-red-900/20 dark:text-red-400">{error}</p>
         ) : null}
 
-        <button type="submit" disabled={submitting || tooShort || mismatch || !email.trim() || !regNo.trim() || !dob || !password || !confirm} aria-busy={submitting} className="focus-ring inline-flex min-h-[52px] w-full items-center justify-center gap-2 rounded-full bg-app-accent text-sm font-black text-app-on-accent transition active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed">
+        <button type="submit" disabled={submitting || !passwordValid || mismatch || !email.trim() || !regNo.trim() || !dob || !confirm} aria-busy={submitting} className="focus-ring inline-flex min-h-[52px] w-full items-center justify-center gap-2 rounded-full bg-app-accent text-sm font-black text-app-on-accent transition active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed">
           {submitting ? "Creating login..." : "Create mobile login"}
         </button>
       </form>

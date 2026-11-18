@@ -39,6 +39,30 @@ describe("input validation", () => {
     assert.equal(validateNewPassword("NoSymbols1AAAAA").ok, false);
   });
 
+  it("names exactly the missing password requirement", () => {
+    // Reported case: has upper + lower + digit, only the symbol is missing.
+    const oKo = validateNewPassword("Oko123456789");
+    assert.equal(oKo.ok, false);
+    assert.equal(oKo.reason, "Password needs a symbol (like ! @ # $).");
+
+    assert.equal(validateNewPassword("nouppercase1!aaaa").reason, "Password needs an upper-case letter (A–Z).");
+    assert.equal(validateNewPassword("NOLOWER1!AAAAA").reason, "Password needs a lower-case letter (a–z).");
+    assert.equal(validateNewPassword("NoDigits!!AAAA").reason, "Password needs a digit (0–9).");
+    assert.equal(validateNewPassword("short1!A").reason, "Password must be 10–128 characters.");
+    assert.equal(validateNewPassword(12345).reason, "Password is required.");
+  });
+
+  it("lists two or more missing requirements together", () => {
+    assert.equal(
+      validateNewPassword("ALLUPPER1234").reason,
+      "Password needs a lower-case letter (a–z) and a symbol (like ! @ # $).",
+    );
+    assert.equal(
+      validateNewPassword("alllowercase").reason,
+      "Password needs an upper-case letter (A–Z), a digit (0–9), and a symbol (like ! @ # $).",
+    );
+  });
+
   it("validates display names", () => {
     assert.equal(validateDisplayName(" Ada Lovelace "), "Ada Lovelace");
     assert.equal(validateDisplayName("x"), null);

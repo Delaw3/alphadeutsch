@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Search, X, Sun, Moon, Bell } from "lucide-react";
 
 import { apiFetch, hasSessionToken } from "@/lib/apiFetch";
+import { givenName } from "@/lib/names";
 import { formatNaira, type MobileCourseRow } from "@/lib/mobile-api";
 import { AppMenu } from "./AppMenu";
 
@@ -120,7 +121,7 @@ export function AppTopBar() {
   const showCourses = (filter === "All" || filter === "Courses") && courseResults.length > 0;
   const nothing = !showPages && !showMyCourses && !showResults && !showAnnouncements && !showCourses && courseStatus === "ready";
 
-  const firstName = me?.name?.split(" ")[0] ?? "";
+  const firstName = givenName(me?.name);
   const greeting = greetingForHour(new Date().getHours());
 
   return (

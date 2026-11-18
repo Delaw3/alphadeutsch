@@ -5,6 +5,12 @@
  * Injectable stores and clocks keep unit tests isolated (no DB, no network).
  */
 
+import {
+  PASSWORD_MAX_LENGTH,
+  PASSWORD_MIN_LENGTH,
+  passwordRequirementMessage,
+} from "./password-rules";
+
 export const GENERIC_AUTH_ERROR = "Invalid email or password.";
 
 export type AuthErrorCode =
@@ -54,18 +60,18 @@ export function normalizeEmail(raw: unknown): string | null {
 
 export type PasswordCheck = { ok: boolean; reason?: string };
 
-/** Minimum 10 chars with upper, lower, digit, symbol. Server-enforced. */
+/**
+ * Minimum 10 chars with upper, lower, digit, symbol. Server-enforced.
+ * Rule definitions live in `password-rules.ts` so the auth forms show the
+ * same, exact "what is missing" text as this server response.
+ */
 export function validateNewPassword(password: unknown): PasswordCheck {
   if (typeof password !== "string") return { ok: false, reason: "Password is required." };
-  if (password.length < 10 || password.length > 128) {
-    return { ok: false, reason: "Password must be 10–128 characters." };
+  if (password.length < PASSWORD_MIN_LENGTH || password.length > PASSWORD_MAX_LENGTH) {
+    return { ok: false, reason: `Password must be ${PASSWORD_MIN_LENGTH}–${PASSWORD_MAX_LENGTH} characters.` };
   }
-  if (!/[a-z]/.test(password) || !/[A-Z]/.test(password) || !/[0-9]/.test(password)) {
-    return { ok: false, reason: "Password needs upper-case, lower-case, and a digit." };
-  }
-  if (!/[^A-Za-z0-9]/.test(password)) {
-    return { ok: false, reason: "Password needs at least one symbol." };
-  }
+  const reason = passwordRequirementMessage(password);
+  if (reason) return { ok: false, reason };
   return { ok: true };
 }
 

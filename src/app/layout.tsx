@@ -14,6 +14,16 @@ export const metadata: Metadata = {
   },
   description: siteConfig.description,
   manifest: "/manifest.webmanifest",
+  /** Brand icon (white "A" on the German flag) generated from alphadeutsch.com/favicon.ico. */
+  icons: {
+    icon: [
+      { url: "/favicon.ico?v=2", sizes: "any" },
+      { url: "/icons/icon-192x192.png?v=2", type: "image/png", sizes: "192x192" },
+      { url: "/icons/icon-512x512.png?v=2", type: "image/png", sizes: "512x512" },
+    ],
+    shortcut: ["/favicon.ico?v=2"],
+    apple: [{ url: "/brand/apple-touch-icon.png", type: "image/png", sizes: "180x180" }],
+  },
 };
 
 /**

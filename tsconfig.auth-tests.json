@@ -17,6 +17,7 @@
   },
   "include": [
     "src/lib/auth/auth-errors.ts",
+    "src/lib/auth/password-rules.ts",
     "src/lib/auth/passwords.ts",
     "src/lib/auth/rate-limit.ts",
     "src/lib/auth/verification.ts",

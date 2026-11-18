@@ -9,12 +9,14 @@ export default function AuthLayout({
 }>) {
   return (
     <div className="mobile-app-shell min-h-dvh bg-app-bg flex items-center justify-center px-4">
-      <div className="w-full max-w-md">
+      <div className="w-full max-w-md py-10">
         <div className="flex flex-col items-center gap-2 mb-8">
           <img
-            src="/icon.svg"
+            src="/brand/logo-256.png"
             alt="Alpha Deutsch"
-            className="h-10 w-auto mb-1"
+            width={40}
+            height={40}
+            className="mb-1 h-10 w-10 rounded-xl"
           />
           <h2 className="text-2xl font-black text-app-text tracking-tight">
             {siteConfig.name}

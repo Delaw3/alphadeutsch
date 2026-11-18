@@ -30,6 +30,13 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+/**
+ * Routes that anonymous users must be allowed to open. `/student-setup` is the
+ * "already a student" flow that signup redirects to, so it has to be public —
+ * otherwise the guard bounces the user straight back to /sign-in.
+ */
+const PUBLIC_ROUTES = new Set(["/sign-in", "/sign-up", "/student-setup"]);
+
 /** localStorage-backed token store; swap later for Capacitor secure storage. */
 export const tokenStorage = {
   get(): string | null {
@@ -56,9 +63,11 @@ function Splash() {
   return (
     <div className="mobile-app-shell min-h-dvh bg-app-bg flex flex-col items-center justify-center gap-2">
       <img
-        src="/icon.svg"
+        src="/brand/logo-256.png"
         alt="Alpha Deutsch"
-        className="h-10 w-auto"
+        width={40}
+        height={40}
+        className="h-10 w-10 rounded-xl"
       />
       <p className="text-xs text-app-muted">Loading…</p>
     </div>
@@ -76,7 +85,10 @@ export function AuthProvider({
   const [user, setUser] = useState<Me | null>(null);
 
   useEffect(() => {
-    setUnauthorizedHandler(() => {
+    setUnauthorizedHandler((tokenUsed) => {
+      // Ignore 401s from a request that used a token which has since been
+      // replaced (e.g. a stale /api/me call racing with a fresh signup).
+      if (tokenUsed && tokenStorage.get() !== tokenUsed) return;
       tokenStorage.clear();
       clearSessionToken();
       setState("anonymous");
@@ -106,7 +118,10 @@ export function AuthProvider({
           setUser(data);
         }
       } catch {
-        if (mounted) {
+        // Only sign the user out if the token that failed is still the current
+        // one. A signup/sign-in may have replaced it while this call was in
+        // flight, and clearing it would bounce the new session to /sign-in.
+        if (mounted && tokenStorage.get() === token) {
           tokenStorage.clear();
           clearSessionToken();
           setState("anonymous");
@@ -123,12 +138,11 @@ export function AuthProvider({
 
   useEffect(() => {
     if (state === "loading") return;
-    const isAuthRoute = pathname === "/sign-in" || pathname === "/sign-up";
-    if (state === "authenticated" && isAuthRoute) {
+    if (state === "authenticated" && PUBLIC_ROUTES.has(pathname)) {
       router.replace("/home");
       return;
     }
-    if (state === "anonymous" && !isAuthRoute && pathname !== "/") {
+    if (state === "anonymous" && !PUBLIC_ROUTES.has(pathname) && pathname !== "/") {
       router.replace("/sign-in");
     }
   }, [state, pathname, router]);

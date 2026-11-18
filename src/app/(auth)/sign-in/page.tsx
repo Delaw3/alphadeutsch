@@ -1,19 +1,40 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import { Eye, EyeOff } from "lucide-react";
+import { useEffect, useState } from "react";
 
 import { apiFetch, saveSessionToken } from "@/lib/apiFetch";
 import { useAuth } from "@/lib/auth-provider";
+import { PasswordInput } from "@/components/mobile/PasswordInput";
+
+/** Short, human-readable explanations for the ?notice= values other auth pages link here with. */
+const NOTICES: Record<string, string> = {
+  exists: "This email is already registered. Sign in to continue.",
+  created: "Your account was created. Sign in to continue.",
+  setup: "Your mobile login was created. Sign in with your new password.",
+};
 
 export default function SignInPage() {
   const { signIn } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  // Prefill the email and explain why we were redirected here (read from the
+  // URL in an effect so the page stays statically renderable).
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const emailParam = params.get("email");
+      if (emailParam) setEmail(emailParam);
+      const noticeParam = params.get("notice");
+      if (noticeParam) setNotice(NOTICES[noticeParam] ?? "");
+    } catch {
+      /* ignore */
+    }
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -48,6 +69,11 @@ export default function SignInPage() {
 
   return (
     <>
+      {notice ? (
+        <p role="status" aria-live="polite" className="mb-4 rounded-2xl bg-green-50 px-4 py-3 text-[13px] font-bold text-green-700 dark:bg-green-900/20 dark:text-green-400">
+          {notice}
+        </p>
+      ) : null}
       <form onSubmit={handleSubmit} noValidate className="grid gap-4">
       <div className="grid gap-1.5">
         <label htmlFor="signin-email" className="text-[13px] font-black text-app-text">
@@ -72,28 +98,15 @@ export default function SignInPage() {
         <label htmlFor="signin-password" className="text-[13px] font-black text-app-text">
           Password
         </label>
-        <div className="relative">
-          <input
-            id="signin-password"
-            type={showPassword ? "text" : "password"}
-            autoComplete="current-password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="••••••••"
-            disabled={submitting}
-            className="focus-ring min-h-[48px] w-full rounded-2xl border border-app-border bg-app-surface-2 px-4 text-sm text-app-text placeholder:text-app-muted disabled:opacity-70 pr-12"
-          />
-          <button
-            type="button"
-            aria-label={showPassword ? "Hide password" : "Show password"}
-            onClick={() => setShowPassword((prev) => !prev)}
-            disabled={submitting}
-            className="absolute inset-y-0 right-2 flex items-center px-2 text-sm text-app-muted transition hover:text-app-text disabled:opacity-70"
-          >
-            {showPassword ? <EyeOff size={16} strokeWidth={2} /> : <Eye size={16} strokeWidth={2} />}
-          </button>
-        </div>
+        <PasswordInput
+          id="signin-password"
+          autoComplete="current-password"
+          required
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder="••••••••"
+          disabled={submitting}
+        />
       </div>
 
       {error ? (

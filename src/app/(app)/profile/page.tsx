@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import type { Metadata } from "next";
 import { apiFetch, hasSessionToken } from "@/lib/apiFetch";
+import { givenName } from "@/lib/names";
 import { MobileCard, MobileScreen } from "@/components/mobile/MobileScreen";
 import { siteConfig } from "@/lib/constants";
 import { MiniSpinner } from "@/components/mobile/MobileLoaders";
@@ -25,12 +25,12 @@ export default function MobileProfilePage() {
       .catch(() => setLoading(false));
   }, []);
 
-  const firstName = me?.name?.split(" ")[0] ?? "";
+  const firstName = givenName(me?.name);
 
   return (
     <MobileScreen
       eyebrow="Profile"
-      title={me ? `Hi, ${firstName}` : "Profile"}
+      title={me ? `Hi ${firstName || "Student"}` : "Profile"}
       description={me ? "Your account and app settings." : "Sign in to access your personal details."}
     >
       <MobileCard>

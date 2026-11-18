@@ -83,7 +83,7 @@ export async function apiFetch<T = unknown>(
       else if (typeof data?.error === 'string') message = data.error;
     } catch { /* ignore */ }
     if (response.status === 401) {
-      onUnauthorized?.();
+      onUnauthorized?.(token);
     }
     const err = new Error(message) as Error & { status: number };
     err.status = response.status;
@@ -112,9 +112,13 @@ export function hasSessionToken(): boolean {
   return readToken() !== null;
 }
 
-let onUnauthorized: (() => void) | null = null;
+let onUnauthorized: ((tokenUsed: string | null) => void) | null = null;
 
-/** Register a global handler invoked on any 401 response (e.g. clear token + redirect). */
-export function setUnauthorizedHandler(handler: () => void): void {
+/**
+ * Register a global handler invoked on any 401 response (e.g. clear token + redirect).
+ * Receives the token that the failed request used so callers can ignore stale
+ * 401s from a session that has already been replaced.
+ */
+export function setUnauthorizedHandler(handler: (tokenUsed: string | null) => void): void {
   onUnauthorized = handler;
 }

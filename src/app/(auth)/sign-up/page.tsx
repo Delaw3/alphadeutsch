@@ -6,8 +6,10 @@ import { useState } from "react";
 
 import { apiFetch, saveSessionToken } from "@/lib/apiFetch";
 import { useAuth } from "@/lib/auth-provider";
+import { passwordRequirementMessage } from "@/lib/auth/password-rules";
 import { MobileStateCard } from "@/components/mobile/MobileStates";
 import { MiniSpinner } from "@/components/mobile/MobileLoaders";
+import { PasswordInput } from "@/components/mobile/PasswordInput";
 
 export default function SignUpPage() {
   const { signIn } = useAuth();
@@ -40,8 +42,9 @@ export default function SignUpPage() {
         return;
       }
       if (signupRes?.message === "already registered, please sign in") {
-        setError("This email is already registered. Please sign in.");
-        router.push("/sign-in");
+        // Carry the reason + email to /sign-in so the user sees why they were
+        // sent there instead of a silent redirect with the error left behind.
+        router.push(`/sign-in?email=${encodeURIComponent(email.trim())}&notice=exists`);
         return;
       }
       setSuccess("Account created successfully");
@@ -66,6 +69,7 @@ export default function SignUpPage() {
       } catch {
         setLoggingIn(false);
         setSuccess("Account created. Please sign in to continue.");
+        router.push(`/sign-in?email=${encodeURIComponent(email.trim())}&notice=created`);
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Registration failed. Please try again.");
@@ -74,7 +78,9 @@ export default function SignUpPage() {
     }
   }
 
-  const tooShort = password.length > 0 && password.length < 10;
+  // Same shared rule the API enforces: name only what is actually missing.
+  const passwordMessage = password.length > 0 ? passwordRequirementMessage(password) : null;
+  const passwordValid = password.length > 0 && passwordMessage === null;
 
   return (
     <>
@@ -89,7 +95,10 @@ export default function SignUpPage() {
           <form onSubmit={handleSubmit} noValidate className="grid gap-4">
             <div className="grid gap-1.5">
               <label htmlFor="signup-name" className="text-[13px] font-black text-app-text">Full name</label>
-              <input id="signup-name" type="text" autoComplete="name" required value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Chukwuemeka Obi" disabled={submitting} className="focus-ring min-h-[48px] w-full rounded-2xl border border-app-border bg-app-surface-2 px-4 text-sm text-app-text placeholder:text-app-muted disabled:opacity-70" />
+              <input id="signup-name" type="text" autoComplete="name" required value={name} onChange={(e) => setName(e.target.value)} disabled={submitting} aria-describedby="signup-name-hint" className="focus-ring min-h-[48px] w-full rounded-2xl border border-app-border bg-app-surface-2 px-4 text-sm text-app-text placeholder:text-app-muted disabled:opacity-70" />
+              <p id="signup-name-hint" className="text-[12px] leading-5 text-app-muted">
+                Surname, First name, Other name
+              </p>
             </div>
             <div className="grid gap-1.5">
               <label htmlFor="signup-email" className="text-[13px] font-black text-app-text">Email address</label>
@@ -97,8 +106,8 @@ export default function SignUpPage() {
             </div>
             <div className="grid gap-1.5">
               <label htmlFor="signup-password" className="text-[13px] font-black text-app-text">Password</label>
-              <input id="signup-password" type="password" autoComplete="new-password" required minLength={10} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="At least 10 characters, upper/lower/digit/symbol" disabled={submitting} className="focus-ring min-h-[48px] w-full rounded-2xl border border-app-border bg-app-surface-2 px-4 text-sm text-app-text placeholder:text-app-muted disabled:opacity-70" />
-              {tooShort ? <p className="mt-1 text-[12px] text-app-muted">Password must be 10+ chars with upper, lower, digit, and symbol.</p> : null}
+              <PasswordInput id="signup-password" autoComplete="new-password" required minLength={10} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="At least 10 characters, upper/lower/digit/symbol" disabled={submitting} aria-describedby={passwordMessage ? "signup-password-hint" : undefined} />
+              {passwordMessage ? <p id="signup-password-hint" className="mt-1 text-[12px] text-app-muted">{passwordMessage}</p> : null}
             </div>
             {error ? (
               <p role="alert" aria-live="polite" className="rounded-2xl bg-red-50 px-4 py-3 text-[13px] font-bold text-red-700 dark:bg-red-900/20 dark:text-red-400">{error}</p>
@@ -106,7 +115,7 @@ export default function SignUpPage() {
             {success && !loggingIn ? (
               <p role="status" aria-live="polite" className="rounded-2xl bg-green-50 px-4 py-3 text-[13px] font-bold text-green-700 dark:bg-green-900/20 dark:text-green-400">{success}</p>
             ) : null}
-            <button type="submit" disabled={submitting || tooShort} aria-busy={submitting} className="focus-ring inline-flex min-h-[52px] w-full items-center justify-center gap-2 rounded-full bg-app-accent text-sm font-black text-app-on-accent transition active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed">
+            <button type="submit" disabled={submitting || !passwordValid} aria-busy={submitting} className="focus-ring inline-flex min-h-[52px] w-full items-center justify-center gap-2 rounded-full bg-app-accent text-sm font-black text-app-on-accent transition active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed">
               {submitting ? (<><span className="inline-block size-4 shrink-0 animate-spin rounded-full border-2 border-current border-t-transparent" /> Creating account…</>) : "Create account"}
             </button>
           </form>
