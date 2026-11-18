@@ -131,12 +131,6 @@ export default function SignInPage() {
     <p className="text-center text-sm text-app-muted">
       Forgot your password? <span className="font-black">Contact the school office.</span>
     </p>
-    <p className="text-center text-sm text-app-muted">
-      Already a student on our website?{" "}
-      <Link href="/legacy-setup" className="focus-ring font-black text-app-text underline underline-offset-4">
-        Set up your mobile login
-      </Link>
-    </p>
     </>
   );
 }
