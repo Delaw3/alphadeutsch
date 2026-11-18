@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 
@@ -10,7 +9,6 @@ import { useAuth } from "@/lib/auth-provider";
 
 export default function SignInPage() {
   const { signIn } = useAuth();
-  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -132,6 +130,12 @@ export default function SignInPage() {
     </p>
     <p className="text-center text-sm text-app-muted">
       Forgot your password? <span className="font-black">Contact the school office.</span>
+    </p>
+    <p className="text-center text-sm text-app-muted">
+      Already a student on our website?{" "}
+      <Link href="/legacy-setup" className="focus-ring font-black text-app-text underline underline-offset-4">
+        Set up your mobile login
+      </Link>
     </p>
     </>
   );
