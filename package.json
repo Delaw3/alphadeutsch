@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:mobile": "node scripts/build-mobile.mjs",
     "start": "next start",
     "lint": "eslint",
     "test:auth": "npm run test:auth:build && node --test \"tests/auth/*.test.mjs\"",
