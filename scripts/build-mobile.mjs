@@ -57,6 +57,12 @@ if (result.status !== 0) fail(`next build failed (exit code ${result.status}).`)
 
 // ---------------------------------------------------------------- verification
 if (!existsSync(outDir)) fail("next build finished but out/ does not exist.");
+
+// The service worker is a PWA caching layer for the website. Inside the APK it
+// brings no benefit and only risks serving a stale shell, so it is not packaged.
+const swPath = join(outDir, "sw.js");
+if (existsSync(swPath)) rmSync(swPath, { force: true });
+
 if (existsSync(join(outDir, "api"))) fail("out/api exists: route handlers leaked into the export.");
 
 function walk(dir, visit) {
@@ -90,6 +96,7 @@ console.log(`  output              : ${outDir}`);
 console.log(`  html files          : ${htmlFiles}`);
 console.log(`  course detail routes: ${courseRoutes}`);
 console.log(`  out/api             : absent`);
+console.log(`  sw.js (native)      : removed`);
 console.log(`  mysql2 references   : ${serverCodeHits.length}`);
 
 if (serverCodeHits.length) fail(`server-only code found in the bundle: ${serverCodeHits.slice(0, 5).join(", ")}`);

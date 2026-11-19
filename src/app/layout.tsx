@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import { NavigationLoader } from "@/components/mobile/MobileLoaders";
+import { NativeBridge } from "@/components/mobile/NativeBridge";
 import { AuthProvider } from "@/lib/auth-provider";
 import { siteConfig } from "@/lib/constants";
 import "./globals.css";
@@ -64,14 +65,16 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){if(!('serviceWorker' in navigator))return;var isProd=${JSON.stringify(
-              process.env.NODE_ENV === "production",
-            )};if(isProd){window.addEventListener('load',function(){navigator.serviceWorker.register('/sw.js').catch(function(){});});}else{navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){r.unregister();});}).catch(function(){});if(window.caches&&caches.keys){caches.keys().then(function(keys){keys.forEach(function(k){caches.delete(k);});}).catch(function(){});}}})();`,
+            __html: `(function(){if(!('serviceWorker' in navigator))return;var enableSw=${JSON.stringify(
+              process.env.NODE_ENV === "production" &&
+                process.env.NEXT_PUBLIC_BUILD_TARGET !== "android",
+            )};if(enableSw){window.addEventListener('load',function(){navigator.serviceWorker.register('/sw.js').catch(function(){});});}else{navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){r.unregister();});}).catch(function(){});if(window.caches&&caches.keys){caches.keys().then(function(keys){keys.forEach(function(k){caches.delete(k);});}).catch(function(){});}}})();`,
           }}
         />
         <div className="mobile-app-shell min-h-dvh bg-app-bg text-app-text">
           <NavigationLoader />
           <AuthProvider>{children}</AuthProvider>
+          <NativeBridge />
         </div>
       </body>
     </html>

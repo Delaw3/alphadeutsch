@@ -1,22 +1,20 @@
 /**
  * Mobile-safe API fetch helper.
  *
- * Prefixes NEXT_PUBLIC_API_BASE_URL, injects a Bearer session token from
- * localStorage, and throws on non-2xx responses with the server error message.
+ * Prefixes NEXT_PUBLIC_API_BASE_URL, injects a Bearer session token from the
+ * platform token store (localStorage on the web, Android Keystore in the native
+ * app), and throws on non-2xx responses with the server error message.
  * All mobile UI pages must use this helper – never call /api/* directly.
  */
+import { clearToken, getToken, setToken } from '@/lib/token-store';
+
 export interface ApiFetchOptions extends RequestInit {
   /** Query parameters appended to the URL. */
   query?: Record<string, string | number | boolean>;
 }
 
 function readToken(): string | null {
-  if (typeof window === 'undefined') return null;
-  try {
-    return localStorage.getItem('sessionToken');
-  } catch {
-    return null;
-  }
+  return getToken();
 }
 
 export async function apiFetch<T = unknown>(
@@ -95,16 +93,12 @@ export async function apiFetch<T = unknown>(
 
 /** Store the session token returned by sign-in. */
 export function saveSessionToken(token: string): void {
-  try {
-    localStorage.setItem('sessionToken', token);
-  } catch { /* ignore */ }
+  void setToken(token).catch(() => {});
 }
 
 /** Remove the session token on sign-out. */
 export function clearSessionToken(): void {
-  try {
-    localStorage.removeItem('sessionToken');
-  } catch { /* ignore */ }
+  void clearToken().catch(() => {});
 }
 
 /** Whether any token is currently stored. */

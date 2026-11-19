@@ -9,6 +9,7 @@ import {
   saveSessionToken,
   setUnauthorizedHandler,
 } from "@/lib/apiFetch";
+import { clearToken, getToken, hydrate, setToken } from "@/lib/token-store";
 
 export type Me = {
   id: number;
@@ -37,25 +38,20 @@ const AuthContext = createContext<AuthContextValue | null>(null);
  */
 const PUBLIC_ROUTES = new Set(["/sign-in", "/sign-up", "/student-setup"]);
 
-/** localStorage-backed token store; swap later for Capacitor secure storage. */
+/**
+ * Token store facade. Persistence is platform-aware (localStorage on the web,
+ * Android Keystore in the packaged app — see `token-store.ts`); `get()` is
+ * synchronous because `token-store` keeps an in-memory copy.
+ */
 export const tokenStorage = {
   get(): string | null {
-    if (typeof window === "undefined") return null;
-    try {
-      return localStorage.getItem("sessionToken");
-    } catch {
-      return null;
-    }
+    return getToken();
   },
   set(token: string): void {
-    try {
-      localStorage.setItem("sessionToken", token);
-    } catch { /* ignore */ }
+    void setToken(token).catch(() => {});
   },
   clear(): void {
-    try {
-      localStorage.removeItem("sessionToken");
-    } catch { /* ignore */ }
+    void clearToken().catch(() => {});
   },
 };
 
@@ -106,6 +102,9 @@ export function AuthProvider({
     }, 5000);
 
     (async () => {
+      // Android Keystore reads are async: wait for the stored token before any
+      // protected request, so a saved session is restored after a restart.
+      await hydrate();
       const token = tokenStorage.get();
       if (!token) {
         if (mounted) setState("anonymous");
