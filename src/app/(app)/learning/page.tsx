@@ -2,10 +2,22 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { AlertTriangle, Check, Clock, Lock, Play } from "lucide-react";
+import { AlertTriangle, Check, Clock, Heart, Lock, MessageCircle, Play } from "lucide-react";
 
 import { apiFetch, hasSessionToken } from "@/lib/apiFetch";
 import { givenName } from "@/lib/names";
+import {
+  addComment as addCommentToStore,
+  commentCount,
+  commentsFor,
+  EMPTY_ENGAGEMENT,
+  isLiked,
+  likeCount,
+  readEngagement,
+  saveEngagement,
+  toggleLike,
+  type VideoEngagement,
+} from "@/lib/learning-social";
 import {
   learningVideos,
   levelCoverClass,
@@ -51,6 +63,8 @@ export default function LearningPage() {
   const [level, setLevel] = useState("All");
   const [watched, setWatched] = useState<string[]>([]);
   const [activeVideo, setActiveVideo] = useState<{ videoId: string; title: string } | null>(null);
+  // Likes and comments are device-local until a server API exists.
+  const [engagement, setEngagement] = useState<VideoEngagement>(EMPTY_ENGAGEMENT);
 
   // Each lesson resolves to a YouTube id once its link is pasted in
   // src/lib/learning-videos.ts; null means "not published yet".
@@ -61,6 +75,7 @@ export default function LearningPage() {
 
   useEffect(() => {
     setWatched(readWatched());
+    setEngagement(readEngagement());
   }, []);
 
   useEffect(() => {
@@ -108,6 +123,27 @@ export default function LearningPage() {
 
   const closePlayer = useCallback(() => setActiveVideo(null), []);
 
+  const toggleLikeFor = useCallback(
+    (videoId: string) => {
+      const next = toggleLike(engagement, videoId);
+      setEngagement(next);
+      saveEngagement(next);
+    },
+    [engagement],
+  );
+
+  const addCommentFor = useCallback(
+    (videoId: string, body: string) => {
+      const author = givenName(me?.name) || "Student";
+      const result = addCommentToStore(engagement, videoId, body, author);
+      if (!result) return false;
+      setEngagement(result.engagement);
+      saveEngagement(result.engagement);
+      return true;
+    },
+    [engagement, me?.name],
+  );
+
   const unpaidCount = regs.filter((r) => r.payment_status !== "Yes").length;
   const firstName = givenName(me?.name) || "Student";
 
@@ -125,6 +161,7 @@ export default function LearningPage() {
   const watchedCount = lessons.filter((l) => watched.includes(l.id)).length;
   const watchedPct = lessons.length === 0 ? 0 : Math.round((watchedCount / lessons.length) * 100);
   const featured = lessons[0] ?? null;
+  const featuredVideoId = featured?.videoId ?? null;
 
   if (status === "loading") {
     return (
@@ -190,7 +227,8 @@ export default function LearningPage() {
 
       {/* HERO / FEATURED LESSON */}
       {featured ? (
-        <button
+        <>
+          <button
           type="button"
           onClick={() => openLesson(featured)}
           disabled={!featured.videoId}
@@ -243,6 +281,43 @@ export default function LearningPage() {
             </div>
           </div>
         </button>
+
+          {featuredVideoId ? (
+            <div className="mt-2 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => toggleLikeFor(featuredVideoId)}
+                aria-pressed={isLiked(engagement, featuredVideoId)}
+                aria-label={
+                  isLiked(engagement, featuredVideoId)
+                    ? `Remove your like from ${featured.title}`
+                    : `Like ${featured.title}`
+                }
+                className={`focus-ring inline-flex min-h-[40px] items-center gap-1.5 rounded-full px-3.5 text-[12px] font-black transition active:scale-95 ${
+                  isLiked(engagement, featuredVideoId)
+                    ? "bg-red-50 text-red-600 dark:bg-red-900/25 dark:text-red-400"
+                    : "bg-app-surface text-app-muted ring-1 ring-app-border"
+                }`}
+              >
+                <Heart
+                  size={15}
+                  strokeWidth={2.2}
+                  fill={isLiked(engagement, featuredVideoId) ? "currentColor" : "none"}
+                />
+                {likeCount(engagement, featuredVideoId) > 0
+                  ? likeCount(engagement, featuredVideoId)
+                  : "Like"}
+              </button>
+              <span className="inline-flex min-h-[40px] items-center gap-1.5 rounded-full bg-app-surface px-3.5 text-[12px] font-black text-app-muted ring-1 ring-app-border">
+                <MessageCircle size={15} strokeWidth={2.2} />
+                {commentCount(engagement, featuredVideoId)}
+              </span>
+              <span className="ml-auto truncate text-[11px] font-bold text-app-muted">
+                {featured.channel ?? ""}
+              </span>
+            </div>
+          ) : null}
+        </>
       ) : null}
 
       {/* LESSON LIBRARY */}
@@ -288,15 +363,22 @@ export default function LearningPage() {
         <div className="mt-3 grid grid-cols-2 gap-3">
           {visibleLessons.map((lesson) => {
             const isWatched = watched.includes(lesson.id);
+            const videoId = lesson.videoId;
+            const liked = videoId ? isLiked(engagement, videoId) : false;
+            const likes = videoId ? likeCount(engagement, videoId) : 0;
+            const commentsTotal = videoId ? commentCount(engagement, videoId) : 0;
             return (
-              <button
+              <div
                 key={lesson.id}
-                type="button"
-                onClick={() => openLesson(lesson)}
-                disabled={!lesson.videoId}
-                aria-label={lesson.videoId ? `Watch ${lesson.title}` : `${lesson.title} — video coming soon`}
-                className="focus-ring group overflow-hidden rounded-2xl border border-app-border bg-app-surface text-left shadow-sm transition hover:shadow-md active:scale-[0.98] disabled:active:scale-100"
+                className="flex flex-col overflow-hidden rounded-2xl border border-app-border bg-app-surface shadow-sm transition hover:shadow-md"
               >
+                <button
+                  type="button"
+                  onClick={() => openLesson(lesson)}
+                  disabled={!videoId}
+                  aria-label={videoId ? `Watch ${lesson.title}` : `${lesson.title} — video coming soon`}
+                  className="focus-ring group block text-left"
+                >
                 <div className="relative aspect-video overflow-hidden">
                   <div className={`relative size-full overflow-hidden bg-gradient-to-br ${levelCoverClass(lesson.level)}`}>
                     {lesson.videoId ? (
@@ -342,10 +424,33 @@ export default function LearningPage() {
                 <div className="p-3">
                   <p className="line-clamp-2 text-[13px] font-black leading-tight text-app-text">{lesson.title}</p>
                   <p className="mt-1 truncate text-[11px] font-bold text-app-muted">
-                    {lesson.videoId ? (lesson.channel ?? "Tap to watch") : "Link coming soon"}
+                    {videoId ? (lesson.channel ?? "Tap to watch") : "Link coming soon"}
                   </p>
                 </div>
-              </button>
+                </button>
+
+                <div className="mt-auto flex items-center gap-1 border-t border-app-border px-2 py-1.5">
+                  <button
+                    type="button"
+                    onClick={() => videoId && toggleLikeFor(videoId)}
+                    disabled={!videoId}
+                    aria-pressed={liked}
+                    aria-label={liked ? `Remove your like from ${lesson.title}` : `Like ${lesson.title}`}
+                    className={`focus-ring inline-flex min-h-[32px] items-center gap-1 rounded-full px-2 text-[11px] font-black transition active:scale-95 disabled:opacity-50 ${
+                      liked
+                        ? "bg-red-50 text-red-600 dark:bg-red-900/25 dark:text-red-400"
+                        : "text-app-muted hover:text-app-text"
+                    }`}
+                  >
+                    <Heart size={14} strokeWidth={2.2} fill={liked ? "currentColor" : "none"} />
+                    {likes > 0 ? likes : null}
+                  </button>
+                  <span className="inline-flex min-h-[32px] items-center gap-1 rounded-full px-2 text-[11px] font-bold text-app-muted">
+                    <MessageCircle size={13} strokeWidth={2.2} />
+                    {commentsTotal}
+                  </span>
+                </div>
+              </div>
             );
           })}
         </div>
@@ -374,7 +479,16 @@ export default function LearningPage() {
       </MobileCard>
 
       {activeVideo ? (
-        <VideoPlayerSheet videoId={activeVideo.videoId} title={activeVideo.title} onClose={closePlayer} />
+        <VideoPlayerSheet
+          videoId={activeVideo.videoId}
+          title={activeVideo.title}
+          liked={isLiked(engagement, activeVideo.videoId)}
+          likeCount={likeCount(engagement, activeVideo.videoId)}
+          comments={commentsFor(engagement, activeVideo.videoId)}
+          onToggleLike={() => toggleLikeFor(activeVideo.videoId)}
+          onAddComment={(body) => addCommentFor(activeVideo.videoId, body)}
+          onClose={closePlayer}
+        />
       ) : null}
 
     </MobileScreen>
