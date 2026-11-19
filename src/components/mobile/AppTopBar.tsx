@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Search, X, Sun, Moon, Bell } from "lucide-react";
 
 import { apiFetch, hasSessionToken } from "@/lib/apiFetch";
+import { greetingForNow } from "@/lib/greetings";
 import { givenName } from "@/lib/names";
 import { formatNaira, type MobileCourseRow } from "@/lib/mobile-api";
 import { AppMenu } from "./AppMenu";
@@ -45,11 +46,6 @@ function levelOf(title: string): string {
 }
 function match(hay: string, q: string) {
   return hay.toLowerCase().includes(q);
-}
-function greetingForHour(hour: number) {
-  if (hour < 12) return "Good morning";
-  if (hour < 18) return "Good afternoon";
-  return "Good evening";
 }
 
 export function AppTopBar() {
@@ -122,7 +118,7 @@ export function AppTopBar() {
   const nothing = !showPages && !showMyCourses && !showResults && !showAnnouncements && !showCourses && courseStatus === "ready";
 
   const firstName = givenName(me?.name);
-  const greeting = greetingForHour(new Date().getHours());
+  const greeting = greetingForNow();
 
   return (
     <header className="sticky top-0 z-40 bg-app-bg pt-[max(env(safe-area-inset-top),2rem)] pb-3">
@@ -144,7 +140,7 @@ export function AppTopBar() {
               <AppMenu />
               <div className="min-w-0">
                 <p className="text-[12px] font-bold text-app-muted">{greeting}</p>
-                <h1 className="truncate text-lg font-black leading-tight text-app-text">{firstName || "Welcome"}</h1>
+                <h1 className="truncate text-lg font-black leading-tight text-app-text">{firstName || "Willkommen"}</h1>
               </div>
             </div>
             <div className="flex items-center gap-2">

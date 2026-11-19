@@ -30,7 +30,7 @@ export default function MobileProfilePage() {
   return (
     <MobileScreen
       eyebrow="Profile"
-      title={me ? `Hi ${firstName || "Student"}` : "Profile"}
+      title={me ? `Hallo ${firstName || "Student"}` : "Profile"}
       description={me ? "Your account and app settings." : "Sign in to access your personal details."}
     >
       <MobileCard>

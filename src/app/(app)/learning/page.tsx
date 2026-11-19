@@ -215,7 +215,7 @@ export default function LearningPage() {
   return (
     <MobileScreen
       eyebrow="My Learning"
-      title={`Hi ${firstName}`}
+      title={`Hallo ${firstName}`}
       description="Watch video tutorials from your instructors."
     >
       {unpaidCount > 0 ? (
