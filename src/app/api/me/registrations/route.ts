@@ -7,6 +7,7 @@ import { authErrorResponse, authStores } from "@/lib/auth/auth-routes";
 import { normalizeDob } from "@/lib/auth/auth-errors";
 import { readSessionCookie, validateSessionToken } from "@/lib/auth/sessions";
 import { getPool } from "@/lib/db";
+import { withApiTiming } from "@/lib/monitoring/perf";
 
 /**
  * GET /api/me/registrations
@@ -38,7 +39,7 @@ type RegRow = RowDataPacket & {
   date_registered: string | null;
 };
 
-export async function GET(request: Request) {
+export const GET = withApiTiming("GET /api/me/registrations", async (request: Request) => {
   try {
     const token = resolveToken(request);
     const valid = await validateSessionToken(authStores.sessions, token);
@@ -88,9 +89,9 @@ export async function GET(request: Request) {
   } catch (error) {
     return authErrorResponse(error);
   }
-}
+});
 
-export async function POST(request: Request) {
+export const POST = withApiTiming("POST /api/me/registrations", async (request: Request) => {
   const enabled = process.env.FEATURE_APP_REGISTRATION === "true";
   if (!enabled) {
     return NextResponse.json(
@@ -246,5 +247,5 @@ export async function POST(request: Request) {
   } catch (error) {
     return authErrorResponse(error);
   }
-}
+});
 

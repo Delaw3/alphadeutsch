@@ -6,6 +6,7 @@ import type { RowDataPacket } from "mysql2/promise";
 import { authErrorResponse, authStores } from "@/lib/auth/auth-routes";
 import { readSessionCookie, validateSessionToken } from "@/lib/auth/sessions";
 import { getPool } from "@/lib/db";
+import { withApiTiming } from "@/lib/monitoring/perf";
 
 function readBearerToken(request: Request): string | null {
   const header = request.headers.get("authorization");
@@ -27,7 +28,7 @@ function resolveToken(request: Request): string | null {
  *   results  -> number of published result rows
  * Only the session user's own data is returned.
  */
-export async function GET(request: Request) {
+export const GET = withApiTiming("GET /api/me/overview", async (request: Request) => {
   try {
     const token = resolveToken(request);
     const valid = await validateSessionToken(authStores.sessions, token);
@@ -74,4 +75,4 @@ export async function GET(request: Request) {
   } catch (error) {
     return authErrorResponse(error);
   }
-}
+});

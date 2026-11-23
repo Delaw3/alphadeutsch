@@ -4,9 +4,10 @@ import { NextResponse } from "next/server";
 
 import { authErrorResponse, authStores } from "@/lib/auth/auth-routes";
 import { readSessionCookie, validateSessionToken } from "@/lib/auth/sessions";
+import { withApiTiming } from "@/lib/monitoring/perf";
 
 /** Phase B: proves server-side session validation. No student data exposed. */
-export async function GET(request: Request) {
+export const GET = withApiTiming("GET /api/auth/me", async (request: Request) => {
   try {
     const token = readSessionCookie(request.headers.get("cookie"));
     const valid = await validateSessionToken(authStores.sessions, token);
@@ -24,4 +25,4 @@ export async function GET(request: Request) {
   } catch (error) {
     return authErrorResponse(error);
   }
-}
+});

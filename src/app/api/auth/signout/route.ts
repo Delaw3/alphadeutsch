@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 
 import { authErrorResponse, authService } from "@/lib/auth/auth-routes";
 import { clearSessionCookie, readSessionCookie } from "@/lib/auth/sessions";
+import { withApiTiming } from "@/lib/monitoring/perf";
 
 /** Mobile (Capacitor) sends `Authorization: Bearer <sessionToken>`. */
 function readBearerToken(request: Request): string | null {
@@ -12,7 +13,7 @@ function readBearerToken(request: Request): string | null {
   return header.slice(7).trim() || null;
 }
 
-export async function POST(request: Request) {
+export const POST = withApiTiming("POST /api/auth/signout", async (request: Request) => {
   try {
     // Bearer first (mobile), then the browser session cookie. The same session
     // token is stored in either channel, so `signout` revokes the matching row.
@@ -25,4 +26,4 @@ export async function POST(request: Request) {
   } catch (error) {
     return authErrorResponse(error);
   }
-}
+});

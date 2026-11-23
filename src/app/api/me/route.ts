@@ -8,6 +8,7 @@ import {
   validateSessionToken,
 } from "@/lib/auth/sessions";
 import { getPool } from "@/lib/db";
+import { withApiTiming } from "@/lib/monitoring/perf";
 import type { RowDataPacket } from "mysql2/promise";
 
 /**
@@ -37,7 +38,7 @@ type StudRow = RowDataPacket & {
   phone: string | null;
 };
 
-export async function GET(request: Request) {
+export const GET = withApiTiming("GET /api/me", async (request: Request) => {
   try {
     const token = resolveToken(request);
     const valid = await validateSessionToken(authStores.sessions, token);
@@ -83,5 +84,5 @@ export async function GET(request: Request) {
   } catch (error) {
     return authErrorResponse(error);
   }
-}
+});
 

@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 
 import { isDatabaseReachable } from "@/lib/db";
+import { logUnexpectedError, withApiTiming } from "@/lib/monitoring/perf";
 
-export async function GET() {
+export const GET = withApiTiming("GET /api/health", async () => {
   try {
     const reachable = await isDatabaseReachable();
     if (!reachable) {
@@ -12,11 +13,13 @@ export async function GET() {
       );
     }
     return NextResponse.json({ status: "ok", database: "reachable" });
-  } catch {
-    // Missing env config or connection failure: never leak details.
+  } catch (error) {
+    // Missing env config or connection failure: never leak details in the body.
+    logUnexpectedError(error);
     return NextResponse.json(
       { status: "unavailable", database: "unreachable" },
       { status: 503 },
     );
   }
-}
+});
+

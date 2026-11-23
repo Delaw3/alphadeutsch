@@ -12,6 +12,7 @@ import { MySqlSessionStore } from "@/lib/auth/mysql-sessions";
 import { MySqlStudentStore, MemoryStudentStore, type StudentStore } from "@/lib/auth/mysql-students";
 import { resolveAuthStoreKind, validateDbConfig, type AuthStoreKind } from "./auth-store-config";
 import { getPool } from "@/lib/db";
+import { logAuthRejection, logUnexpectedError } from "@/lib/monitoring/perf";
 
 export { resolveAuthStoreKind, validateDbConfig, type AuthStoreKind };
 
@@ -69,8 +70,12 @@ function clientIp(request: Request): string {
 
 export function authErrorResponse(error: unknown) {
   if (error instanceof AuthError) {
+    // Expected rejection (bad credentials, lockout, validation): code + status only.
+    logAuthRejection({ code: error.code, status: error.status });
     return NextResponse.json({ error: error.message, code: error.code }, { status: error.status });
   }
+  // Unexpected failure (usually a database error): sanitised record, no SQL/values.
+  logUnexpectedError(error);
   return NextResponse.json({ error: "Account service is unavailable." }, { status: 500 });
 }
 

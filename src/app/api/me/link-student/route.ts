@@ -6,6 +6,7 @@ import type { RowDataPacket } from "mysql2/promise";
 import { authErrorResponse, authStores } from "@/lib/auth/auth-routes";
 import { readSessionCookie, validateSessionToken } from "@/lib/auth/sessions";
 import { getPool } from "@/lib/db";
+import { withApiTiming } from "@/lib/monitoring/perf";
 import { normalizeDob } from "@/lib/auth/auth-errors";
 
 function readBearerToken(request: Request): string | null {
@@ -26,7 +27,7 @@ function resolveToken(request: Request): string | null {
  * Sets users.stud2022_id and users.role = 'student'. Never derives admin from stud2022.
  * Identity (reg_no) is resolved via the session user only.
  */
-export async function POST(request: Request) {
+export const POST = withApiTiming("POST /api/me/link-student", async (request: Request) => {
   try {
     const token = resolveToken(request);
     const valid = await validateSessionToken(authStores.sessions, token);
@@ -107,4 +108,4 @@ export async function POST(request: Request) {
   } catch (error) {
     return authErrorResponse(error);
   }
-}
+});

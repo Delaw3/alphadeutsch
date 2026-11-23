@@ -4,8 +4,9 @@ import { NextResponse } from "next/server";
 
 import { authErrorResponse, authService, clientIp } from "@/lib/auth/auth-routes";
 import { buildSessionCookie } from "@/lib/auth/sessions";
+import { withApiTiming } from "@/lib/monitoring/perf";
 
-export async function POST(request: Request) {
+export const POST = withApiTiming("POST /api/auth/signin", async (request: Request) => {
   try {
     const body = (await request.json().catch(() => null)) as {
       email?: unknown;
@@ -26,4 +27,4 @@ export async function POST(request: Request) {
   } catch (error) {
     return authErrorResponse(error);
   }
-}
+});

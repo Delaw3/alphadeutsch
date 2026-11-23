@@ -3,8 +3,9 @@ import "server-only";
 import { NextResponse } from "next/server";
 
 import { authErrorResponse, authService, clientIp } from "@/lib/auth/auth-routes";
+import { withApiTiming } from "@/lib/monitoring/perf";
 
-export async function POST(request: Request) {
+export const POST = withApiTiming("POST /api/auth/resend-code", async (request: Request) => {
   try {
     const body = (await request.json().catch(() => null)) as { email?: unknown } | null;
     const result = await authService.resendCode({ email: body?.email, clientIp: clientIp(request) });
@@ -12,4 +13,4 @@ export async function POST(request: Request) {
   } catch (error) {
     return authErrorResponse(error);
   }
-}
+});

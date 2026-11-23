@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import type { RowDataPacket } from "mysql2/promise";
 
 import { getPool } from "@/lib/db";
+import { logUnexpectedError, withApiTiming } from "@/lib/monitoring/perf";
 
 type CourseRow = RowDataPacket & {
   id: number;
@@ -13,7 +14,7 @@ type CourseRow = RowDataPacket & {
   is_open: number;
 };
 
-export async function GET(request: Request) {
+export const GET = withApiTiming("GET /api/courses", async (request: Request) => {
   try {
     const { searchParams } = new URL(request.url);
     const openOnly = searchParams.get("open");
@@ -27,7 +28,9 @@ export async function GET(request: Request) {
     const pool = getPool();
     const [rows] = await pool.query<CourseRow[]>(sql);
     return NextResponse.json({ data: rows });
-  } catch {
+  } catch (error) {
+    logUnexpectedError(error);
     return NextResponse.json({ error: "Course catalogue is unavailable." }, { status: 503 });
   }
-}
+});
+

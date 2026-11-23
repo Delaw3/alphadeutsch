@@ -27,6 +27,13 @@ export const ALLOWED_ORIGINS = [
 
 export const ALLOWED_METHODS = "GET, POST, OPTIONS";
 export const ALLOWED_HEADERS = "Authorization, Content-Type";
+/**
+ * `Server-Timing` is set by every API handler (see src/lib/monitoring/perf.ts).
+ * Browsers only expose response headers to cross-origin JavaScript when they are
+ * listed here, so the Capacitor app can read the timings too. Exposing a header
+ * is a read permission only — it changes no payload, status or auth behaviour.
+ */
+export const EXPOSED_HEADERS = "Server-Timing";
 export const PREFLIGHT_MAX_AGE_SECONDS = "600";
 
 /** True only for an exact (case-insensitive, per URL spec) allowed origin. */
@@ -49,6 +56,7 @@ export function corsHeadersFor(origin: string | null | undefined): Headers {
     headers.set("Access-Control-Allow-Origin", origin!.trim());
     headers.set("Access-Control-Allow-Methods", ALLOWED_METHODS);
     headers.set("Access-Control-Allow-Headers", ALLOWED_HEADERS);
+    headers.set("Access-Control-Expose-Headers", EXPOSED_HEADERS);
     headers.set("Access-Control-Max-Age", PREFLIGHT_MAX_AGE_SECONDS);
   }
 

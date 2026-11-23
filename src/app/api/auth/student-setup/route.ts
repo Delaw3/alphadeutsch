@@ -7,6 +7,7 @@ import { normalizeDob, normalizeEmail, validateNewPassword } from "@/lib/auth/au
 import { hashPassword } from "@/lib/auth/passwords";
 import { MemoryRateLimiter } from "@/lib/auth/rate-limit";
 import { getPool } from "@/lib/db";
+import { logUnexpectedError, withApiTiming } from "@/lib/monitoring/perf";
 
 const limiter = new MemoryRateLimiter(8, 10 * 60_000);
 
@@ -17,7 +18,7 @@ const limiter = new MemoryRateLimiter(8, 10 * 60_000);
  * "Already a student" flow: verify the student by EMAIL + reg_no + DOB, then
  * set a NEW mobile password (bcrypt). The legacy `killer` column is untouched.
  */
-export async function POST(request: Request) {
+export const POST = withApiTiming("POST /api/auth/student-setup", async (request: Request) => {
   try {
     const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
     if (!limiter.check(`student-setup:${ip}`).allowed) {
@@ -119,10 +120,11 @@ export async function POST(request: Request) {
       { message: "Mobile login created. Sign in with your email and new password.", email },
       { status: 200 },
     );
-  } catch {
+  } catch (error) {
+    logUnexpectedError(error);
     return NextResponse.json(
       { error: "Could not set up your mobile login. Please try again." },
       { status: 500 },
     );
   }
-}
+});
