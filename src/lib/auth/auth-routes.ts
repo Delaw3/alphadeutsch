@@ -3,7 +3,8 @@ import "server-only";
 import { NextResponse } from "next/server";
 
 import { AuthError } from "@/lib/auth/auth-errors";
-import { DevOutboxAdapter, type MailAdapter } from "@/lib/auth/dev-mailer";
+import type { MailAdapter } from "@/lib/auth/dev-mailer";
+import { createLazyMailer } from "@/lib/auth/email-provider";
 import { AuthService, MemoryUserStore, type UserStore } from "@/lib/auth/auth-service";
 import { MemorySessionStore, type SessionStore } from "@/lib/auth/sessions";
 import { MemoryChallengeStore, type ChallengeStore } from "@/lib/auth/verification";
@@ -25,9 +26,11 @@ export type AuthStores = {
   kind: AuthStoreKind;
 };
 
-export function createAuthStores(): AuthStores {
-  const kind = resolveAuthStoreKind();
-  const mailer = new DevOutboxAdapter();
+export function createAuthStores(env: NodeJS.ProcessEnv = process.env): AuthStores {
+  const kind = resolveAuthStoreKind(env);
+  // Lazy: a broken SMTP configuration must not prevent sign-in/sign-out or any
+  // other auth route from loading. Sending still fails with a provider error.
+  const mailer = createLazyMailer(env);
   const challenges = new MemoryChallengeStore();
 
   if (kind === "memory") {
@@ -38,7 +41,7 @@ export function createAuthStores(): AuthStores {
   }
 
   // MySQL store: validate DB configuration and create pooled adapters
-  validateDbConfig();
+  validateDbConfig(env);
   const pool = getPool();
   const users = new MySqlUserStore(pool);
   const sessions = new MySqlSessionStore(pool);

@@ -228,7 +228,12 @@ export class AuthService {
 
     try {
       const issued = await issueChallenge(this.deps.challenges, { userId: user.id, purpose: "signup" });
-      await this.deps.mailer.sendVerificationCode({ to: user.email, purpose: "signup", code: issued.code });
+      await this.deps.mailer.sendVerificationCode({
+        to: user.email,
+        purpose: "signup",
+        code: issued.code,
+        trigger: "signup",
+      });
     } catch (error) {
       if (error instanceof AuthError) throw error;
       throw new AuthError("provider-error", 500, "Email delivery failed. Please try again.");
@@ -259,7 +264,12 @@ export class AuthService {
     const user = await this.deps.users.findByEmail(email);
     if (!user || user.emailVerifiedAt) return { message: GENERIC_SIGNUP_MESSAGE };
     const issued = await issueChallenge(this.deps.challenges, { userId: user.id, purpose: "signup" });
-    await this.deps.mailer.sendVerificationCode({ to: user.email, purpose: "signup", code: issued.code });
+    await this.deps.mailer.sendVerificationCode({
+      to: user.email,
+      purpose: "signup",
+      code: issued.code,
+      trigger: "resend",
+    });
     return { message: GENERIC_SIGNUP_MESSAGE };
   }
 

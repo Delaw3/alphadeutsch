@@ -22,7 +22,7 @@ server-side social features are still switched off on purpose (see
 | Sign up / sign in (e-mail + password) | ✅ | bcrypt hashes, 5-attempt lockout for 15 minutes |
 | "Already a student" setup | ✅ | `/student-setup`: e-mail + reg no + date of birth → choose a new password |
 | Sessions | ✅ | 30-day httpOnly cookie plus Bearer token; only the SHA-256 token hash is stored |
-| E-mail verification codes | ⚠️ | 6-digit codes exist, but delivery is a dev outbox; `AUTH_REQUIRE_EMAIL_VERIFY` defaults to `false` |
+| E-mail verification codes | ⚠️ | SMTP delivery via WhoGoHost is available behind `AUTH_EMAIL_PROVIDER=smtp`; `dev` (in-memory outbox) is the default. `AUTH_REQUIRE_EMAIL_VERIFY` defaults to `false` |
 | Course catalogue | ✅ | Live from MySQL, mode filters, course detail page |
 | My courses | ✅ | Registrations with Paid / Not paid badges |
 | Check result | ✅ | Blocked while unpaid; per-skill scores, grades and total |
@@ -119,7 +119,14 @@ npm run build
 | `NEXT_PUBLIC_API_BASE_URL` | `""` (same origin) | Absolute API base for a packaged WebView build |
 | `AUTH_STORE` | `mysql` | `memory` is accepted **only** when `NODE_ENV=test` |
 | `AUTH_REQUIRE_EMAIL_VERIFY` | `false` | When `true`, sign-in requires a verified e-mail |
-| `AUTH_EMAIL_PROVIDER` | unset | Reserved hook for a real mail provider; production delivery stays blocked until one is wired up |
+| `AUTH_EMAIL_PROVIDER` | `dev` | E-mail transport: `dev` (in-memory outbox) or `smtp` (WhoGoHost SMTP; requires the `SMTP_*` values) |
+| `SMTP_HOST` | — | SMTP server, e.g. `mail.alphadeutsch.com` |
+| `SMTP_PORT` | `465` | Submission port: `465` (implicit TLS, `secure: true`) or `587` (STARTTLS, `secure: false`); port 25 is rejected |
+| `SMTP_SECURE` | `true` | Must match the port: `true` for 465, `false` for 587 |
+| `SMTP_USER` | — | SMTP username (the mailbox address) |
+| `SMTP_PASSWORD` | — | SMTP password (hosting environment only; never committed) |
+| `SMTP_FROM` | — | From address; use the authenticated mailbox |
+| `SMTP_FROM_NAME` | `Alpha Deutsch` | Display name in the From header and e-mail footer |
 | `FEATURE_APP_REGISTRATION` | `false` | Enables `POST /api/me/registrations` |
 | `NEXT_PUBLIC_FEATURE_APP_REGISTRATION` | `false` | Shows the in-app registration form instead of the portal link |
 | `NEXT_PUBLIC_SITE_REGISTRATION_URL` | `https://portal.alphadeutsch.com/registration` | Fallback registration page |
@@ -128,6 +135,20 @@ npm run build
 Secrets stay server-side: `src/lib/db.ts` and every auth module import
 `server-only`, so a client component cannot bundle the MySQL driver or the
 credentials.
+
+### E-mail delivery
+
+Real delivery uses Nodemailer over the WhoGoHost SMTP mailbox. Select it with
+`AUTH_EMAIL_PROVIDER=smtp` and provide the `SMTP_*` variables in the hosting
+environment. Port `465` uses implicit TLS (`SMTP_SECURE=true`); port `587` uses
+STARTTLS (`SMTP_SECURE=false`). Port 25, and any other port/encryption pairing,
+is rejected. Sending is awaited inside the route and bounded by an 8-second
+socket timeout. `AUTH_EMAIL_PROVIDER=dev` (the default) keeps the in-memory
+outbox used by local development and tests.
+
+Verification is **not mandatory** (`AUTH_REQUIRE_EMAIL_VERIFY=false`), and
+verification challenges plus rate limits are still per-instance memory, so do not
+enable the gate until persistent storage and the verification UI exist.
 
 ## Screens
 
@@ -387,13 +408,13 @@ npm run build
 3. **No payment processing.** `/pay` links to
    `portal.alphadeutsch.com/payment.php`; payment status is read from
    `course_reg.payment_status`.
-4. **E-mail delivery is development-only.** Verification codes go to an
-   in-memory outbox and are lost on restart; production delivery throws until a
-   real provider is wired up behind `AUTH_EMAIL_PROVIDER`.
-   `AUTH_REQUIRE_EMAIL_VERIFY` is `false` by default, so accounts are usable
-   without confirming an address.
-5. **Verification challenges are memory-only**, so codes do not survive a
-   restart and do not work across multiple server instances.
+4. **E-mail delivery supports SMTP but is opt-in.** Set `AUTH_EMAIL_PROVIDER=smtp`
+   plus the `SMTP_*` variables for real delivery; the default `dev` writes codes
+   to an in-memory outbox that is lost on restart. `AUTH_REQUIRE_EMAIL_VERIFY` is
+   `false` by default, so accounts are usable without confirming an address.
+5. **Verification challenges and rate limits are memory-only**, so codes do not
+   survive a restart and do not work across multiple server instances. Persist
+   them before enabling mandatory verification.
 6. **No self-service password reset** — students are told to contact the office.
 7. **The lesson list is a code array** (`src/lib/learning-videos.ts`); there is
    no admin endpoint or CMS for it.
@@ -408,8 +429,9 @@ npm run build
 1. Move likes/comments to MySQL (`lesson_likes`, `lesson_comments`) plus
    `/api/learning/*` endpoints, keeping the `learning-social` types and UI.
 2. Serve the lesson list from an admin-managed endpoint instead of a code array.
-3. Add a real mail provider behind `AUTH_EMAIL_PROVIDER`, persist verification
-   challenges, then turn on `AUTH_REQUIRE_EMAIL_VERIFY`.
+3. Persist verification challenges and rate limits, then turn on
+   `AUTH_REQUIRE_EMAIL_VERIFY`. SMTP delivery (WhoGoHost) is already available
+   behind `AUTH_EMAIL_PROVIDER=smtp`.
 4. Agree seat/capacity rules, then enable in-app registration
    (`FEATURE_APP_REGISTRATION` + `NEXT_PUBLIC_FEATURE_APP_REGISTRATION`).
 5. Add payment initiation/callbacks instead of redirecting to the portal.

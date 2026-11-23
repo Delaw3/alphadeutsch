@@ -3,34 +3,51 @@ import "server-only";
 import { AuthError } from "./auth-errors";
 
 /**
- * Email-code delivery boundary (Phase B: local dev only).
+ * Email-code delivery boundary.
  *
- * Production email is NOT configured. The dev adapter writes codes to an
- * in-memory outbox (and optionally a local log file wired by the caller) so
- * tests and local flows can retrieve them. It refuses to run when
- * NODE_ENV=production unless an explicit provider is configured — which does
- * not exist yet, so production delivery always throws.
+ * Two adapters implement `MailAdapter`:
+ * - `DevOutboxAdapter` (here): in-memory outbox for local development and tests.
+ * - `SmtpMailAdapter` (smtp-mailer.ts): real delivery, selected with
+ *   AUTH_EMAIL_PROVIDER=smtp.
+ *
+ * The dev adapter refuses every delivery when NODE_ENV=production, so production
+ * can never silently send through the outbox; a configured SMTP provider is
+ * required there. The provider is resolved lazily (email-provider.ts), so a
+ * misconfigured SMTP setup cannot stop unrelated auth routes from loading.
  */
 
 export type CodeDelivery = {
-  channel: "dev-outbox";
+  channel: "dev-outbox" | "smtp";
   to: string;
   purpose: "signup" | "claim" | "reset";
   code: string;
   sentAt: number;
 };
 
+/**
+ * `trigger` distinguishes which endpoint initiated the send so delivery metrics
+ * can report "signup" vs "resend". It is optional for backwards compatibility
+ * and is never sent to the recipient.
+ */
+export type VerificationMailInput = {
+  to: string;
+  purpose: CodeDelivery["purpose"];
+  code: string;
+  trigger?: "signup" | "resend";
+};
+
 export type MailAdapter = {
-  sendVerificationCode(input: { to: string; purpose: CodeDelivery["purpose"]; code: string }): Promise<CodeDelivery>;
+  sendVerificationCode(input: VerificationMailInput): Promise<CodeDelivery>;
 };
 
 function isProduction(): boolean {
   return process.env.NODE_ENV === "production";
 }
 
-/** Guard: dev-only delivery must never be reachable in production. */
+/** Guard: the development outbox must never deliver in production. */
 export function assertDevDeliveryAllowed(): void {
-  // An explicit provider env would allow production delivery later; absent = blocked.
+  // The dev adapter is never a production sender, even when a provider is
+  // selected; production must use SmtpMailAdapter via AUTH_EMAIL_PROVIDER=smtp.
   if (isProduction() && !process.env.AUTH_EMAIL_PROVIDER) {
     throw new AuthError("provider-error", 500, "Email delivery is not configured.");
   }
@@ -42,7 +59,7 @@ export function assertDevDeliveryAllowed(): void {
 export class DevOutboxAdapter implements MailAdapter {
   readonly outbox: CodeDelivery[] = [];
 
-  async sendVerificationCode(input: { to: string; purpose: CodeDelivery["purpose"]; code: string }) {
+  async sendVerificationCode(input: VerificationMailInput) {
     assertDevDeliveryAllowed();
     if (!input.to || !input.code) {
       throw new AuthError("provider-error", 500, "Email delivery failed. Please try again.");

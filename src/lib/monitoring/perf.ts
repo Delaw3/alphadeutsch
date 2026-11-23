@@ -259,6 +259,35 @@ export function logUnexpectedError(error: unknown): void {
   }
 }
 
+export type EmailSendSample = {
+  /** "signup" | "resend" | "claim" | "reset" — a fixed code, never free text. */
+  purpose: string;
+  ok: boolean;
+  ms: number;
+  /** Nodemailer/SMTP code (EAUTH, ETIMEDOUT, …) after allowlist sanitising. */
+  errorCode?: string;
+};
+
+/**
+ * Records one delivery attempt. Only fixed identifiers, a duration and a
+ * sanitised SMTP code are logged — never the recipient, the code, the message
+ * body or the provider's error text. Must never throw.
+ */
+export function logEmailSend(sample: EmailSendSample): void {
+  try {
+    emit(sample.ok ? "info" : "error", {
+      event: "email.send",
+      route: currentRoute(),
+      purpose: sanitizeText(sample.purpose, 20),
+      outcome: sample.ok ? "success" : "failure",
+      ms: roundMs(sample.ms),
+      ...(sample.errorCode ? { errorCode: sanitizeText(sample.errorCode, 40) } : {}),
+    });
+  } catch {
+    // Mail delivery must never depend on the monitoring layer.
+  }
+}
+
 function logRequest(state: RequestContext, status: number, durationMs: number): void {
   const ms = roundMs(durationMs);
   const slow = ms >= SLOW_API_MS;
