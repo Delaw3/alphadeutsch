@@ -12,7 +12,8 @@
     "start": "next start",
     "lint": "eslint",
     "test:auth": "npm run test:auth:build && node --test \"tests/auth/*.test.mjs\"",
-    "test:auth:build": "rm -rf tests/build && tsc -p tsconfig.auth-tests.json"
+    "test:auth:build": "node -e \"require('node:fs').rmSync('tests/build',{recursive:true,force:true})\" && tsc -p tsconfig.auth-tests.json",
+    "test:auth:integration": "npm run test:auth:build && node scripts/run-auth-integration.mjs"
   },
   "dependencies": {
     "@aparajita/capacitor-secure-storage": "^8.0.1",

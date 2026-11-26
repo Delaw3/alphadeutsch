@@ -80,7 +80,7 @@ Logout), `/results`, `/register-course?course=<id>`, `/learning`, `/profile`.
 
 - `POST /api/auth/signup` — validate name/email/password/reg-claim; generic
   responses; rate-limited; issues email code, never logs the code.
-- `POST /api/auth/verify-email` — single-use, expiry (15 min), max 5 attempts,
+- `POST /api/auth/verify-email` — single-use, expiry (10 minutes), max 5 attempts,
   resend cooldown 60s; binds session on success.
 - `POST /api/auth/signin` — email+password, bcrypt compare, constant-time
   generic failure, rate-limited + lockout backoff.

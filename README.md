@@ -22,7 +22,7 @@ server-side social features are still switched off on purpose (see
 | Sign up / sign in (e-mail + password) | ✅ | bcrypt hashes, 5-attempt lockout for 15 minutes |
 | "Already a student" setup | ✅ | `/student-setup`: e-mail + reg no + date of birth → choose a new password |
 | Sessions | ✅ | 30-day httpOnly cookie plus Bearer token; only the SHA-256 token hash is stored |
-| E-mail verification codes | ⚠️ | SMTP delivery via WhoGoHost is available behind `AUTH_EMAIL_PROVIDER=smtp`; `dev` (in-memory outbox) is the default. `AUTH_REQUIRE_EMAIL_VERIFY` defaults to `false` |
+| E-mail verification codes | ✅ | Six-digit codes, branded e-mail with the app logo, `/verify-email` screen with resend countdown. Delivery via SMTP (`AUTH_EMAIL_PROVIDER=smtp`) or the dev outbox; `AUTH_REQUIRE_EMAIL_VERIFY` defaults to `false` |
 | Course catalogue | ✅ | Live from MySQL, mode filters, course detail page |
 | My courses | ✅ | Registrations with Paid / Not paid badges |
 | Check result | ✅ | Blocked while unpaid; per-skill scores, grades and total |
@@ -119,14 +119,18 @@ npm run build
 | `NEXT_PUBLIC_API_BASE_URL` | `""` (same origin) | Absolute API base for a packaged WebView build |
 | `AUTH_STORE` | `mysql` | `memory` is accepted **only** when `NODE_ENV=test` |
 | `AUTH_REQUIRE_EMAIL_VERIFY` | `false` | When `true`, sign-in requires a verified e-mail |
+| `AUTH_CODE_PEPPER` | — | Server-only HMAC pepper for e-mail codes: exactly 64 hexadecimal characters (`openssl rand -hex 32`). Required whenever a code is issued or verified; never commit it |
 | `AUTH_EMAIL_PROVIDER` | `dev` | E-mail transport: `dev` (in-memory outbox) or `smtp` (WhoGoHost SMTP; requires the `SMTP_*` values) |
 | `SMTP_HOST` | — | SMTP server, e.g. `mail.alphadeutsch.com` |
 | `SMTP_PORT` | `465` | Submission port: `465` (implicit TLS, `secure: true`) or `587` (STARTTLS, `secure: false`); port 25 is rejected |
 | `SMTP_SECURE` | `true` | Must match the port: `true` for 465, `false` for 587 |
 | `SMTP_USER` | — | SMTP username (the mailbox address) |
 | `SMTP_PASSWORD` | — | SMTP password (hosting environment only; never committed) |
-| `SMTP_FROM` | — | From address; use the authenticated mailbox |
+| `SMTP_FROM` | — | From address; use the authenticated mailbox (`EMAIL_FROM` is accepted as a legacy alias) |
 | `SMTP_FROM_NAME` | `Alpha Deutsch` | Display name in the From header and e-mail footer |
+| `NEXT_PUBLIC_SITE_URL` | `VERCEL_URL` or `http://localhost:3000` | Public origin of this app; also the base for the e-mail logo |
+| `EMAIL_LOGO_URL` | `${NEXT_PUBLIC_SITE_URL}/brand/logo-256.png` | Absolute logo URL for the verification e-mail header; with no value the header is a text wordmark |
+| `STUDENT_PHOTO_BASE_URL` | `https://portal.alphadeutsch.com/PROFILE_IMAGE/` | Base URL for passport photos; `/Upload/` and the portal root are tried automatically as fallbacks |
 | `FEATURE_APP_REGISTRATION` | `false` | Enables `POST /api/me/registrations` |
 | `NEXT_PUBLIC_FEATURE_APP_REGISTRATION` | `false` | Shows the in-app registration form instead of the portal link |
 | `NEXT_PUBLIC_SITE_REGISTRATION_URL` | `https://portal.alphadeutsch.com/registration` | Fallback registration page |
@@ -146,9 +150,18 @@ is rejected. Sending is awaited inside the route and bounded by an 8-second
 socket timeout. `AUTH_EMAIL_PROVIDER=dev` (the default) keeps the in-memory
 outbox used by local development and tests.
 
-Verification is **not mandatory** (`AUTH_REQUIRE_EMAIL_VERIFY=false`), and
-verification challenges plus rate limits are still per-instance memory, so do not
-enable the gate until persistent storage and the verification UI exist.
+Verification e-mails use a branded HTML template (`buildVerificationEmail` in
+`src/lib/auth/smtp-mailer.ts`): the app logo (`/brand/logo-256.png`) beside the
+wordmark as a table-based header, a boxed 6-digit code and a sender footer, plus
+a plain-text alternative that never references remote assets. The logo needs an
+absolute URL — set `EMAIL_LOGO_URL`, or set `NEXT_PUBLIC_SITE_URL` and the image
+is taken from `${NEXT_PUBLIC_SITE_URL}/brand/logo-256.png`. With neither set the
+header falls back to the text wordmark, so a broken image is never sent.
+
+Verification is **not mandatory** (`AUTH_REQUIRE_EMAIL_VERIFY=false`). Codes are
+stored in `verification_challenges` (`migrations/004_verification_challenges.sql`)
+when the MySQL store is active, so the gate can be enabled once that migration is
+applied; the in-memory rate limits remain per-instance.
 
 ## Screens
 
@@ -161,21 +174,23 @@ Courses, Register and Pay.
 | --- | --- | --- |
 | `/` | `src/app/page.tsx` | Redirects to `/home` or `/sign-in` based on the stored token |
 | `/sign-in` | `(auth)/sign-in/page.tsx` | E-mail + password; carries `?email=` and `?notice=` from signup |
-| `/sign-up` | `(auth)/sign-up/page.tsx` | Name, e-mail, password; auto-signs in on success |
+| `/sign-up` | `(auth)/sign-up/page.tsx` | Name, e-mail, password; issues a 6-digit code and continues to `/verify-email` |
+| `/verify-email` | `(auth)/verify-email/page.tsx` | Six-cell code entry, 60-second resend countdown, success state, e-mail step when opened without `?email=` |
 | `/student-setup` | `(auth)/student-setup/page.tsx` | Existing students: e-mail + reg no + DOB + new password |
+| `/forgot-password` | `(auth)/forgot-password/page.tsx` | Three steps: e-mail → 6-digit code → new password + confirm (reset ticket, 15 min) |
 | `/home` | `(app)/home/page.tsx` | Greeting, hero card, announcements, live stat chips, quick actions |
 | `/courses` | `(app)/courses/page.tsx` | Open courses from `GET /api/courses`, filtered by learning mode |
 | `/courses/[id]` | `(app)/courses/[id]/page.tsx` | Course detail with price and offline/not-found states |
 | `/learning` | `(app)/learning/page.tsx` | Featured lesson, level chips, watched progress, likes, comments |
-| `/result` | `(app)/result/page.tsx` | Inline student verification, course/sitting pickers, score table |
+| `/result` | `(app)/result/page.tsx` | Inline student verification, course/sitting pickers, printable result slip (passport photo, skills, total) with **Download PDF** / **Share PDF** |
 | `/my-courses` | `(app)/my-courses/page.tsx` | Registration list with payment badges |
 | `/register` | `(app)/register/page.tsx` | In-app registration form when enabled, portal link otherwise |
 | `/pay` | `(app)/pay/page.tsx` | Opens the external payment portal |
 | `/profile` | `(app)/profile/page.tsx` | Account details, theme switch, sign out |
 
 `AuthProvider` (`src/lib/auth-provider.tsx`) guards the `(app)` group: anonymous
-visitors are sent to `/sign-in`, and `/sign-in`, `/sign-up`, `/student-setup` are
-the only public routes.
+visitors are sent to `/sign-in`, and `/sign-in`, `/sign-up`, `/verify-email` and
+`/student-setup` are the only public routes.
 
 ## API
 
@@ -190,7 +205,10 @@ applies a 10-second timeout and throws the server's error message on non-2xx.
 | POST | `/api/auth/signin` | public | Sets the session cookie **and** returns `sessionToken` for the Bearer flow |
 | POST | `/api/auth/signout` | cookie | Revokes the session and clears the cookie |
 | GET | `/api/auth/me` | cookie | Legacy cookie-only identity probe (no student data) |
-| POST | `/api/auth/verify-email` | public | Consumes a 6-digit code (15-minute TTL, 5 attempts) |
+| POST | `/api/auth/verify-email` | public | Consumes a 6-digit code (10-minute TTL, 5 attempts) |
+| POST | `/api/auth/forgot-password` | public | Checks the address (`account-not-found` / `email-not-verified`) then e-mails a reset code |
+| POST | `/api/auth/verify-reset-code` | public | Consumes the reset code and returns a single-use reset ticket (SHA-256 stored, 15 min) |
+| POST | `/api/auth/reset-password` | public | Exchanges the ticket for a new password; revokes all sessions |
 | POST | `/api/auth/resend-code` | public | Re-issues a code after a 60-second cooldown; neutral response |
 | POST | `/api/auth/student-setup` | public | Verifies e-mail + reg no + DOB, then stores a new bcrypt password |
 | GET | `/api/courses` | public | Open courses by default; `?open=all` includes closed ones |
@@ -200,7 +218,8 @@ applies a 10-second timeout and throws the server's error message on non-2xx.
 | GET | `/api/me/registrations` | cookie or Bearer | Registrations joined with course title/level + payment status |
 | POST | `/api/me/registrations` | cookie or Bearer | Gated by `FEATURE_APP_REGISTRATION`; verifies the course is open |
 | POST | `/api/me/link-student` | cookie or Bearer | Links the account to `stud2022` by reg no + DOB (e-mail must match) |
-| GET | `/api/me/results?course_id=&sitting=` | cookie or Bearer | Scores; returns `reason: "unpaid"` until the course is paid |
+| GET | `/api/me/results?course_id=&sitting=` | cookie or Bearer | Scores + `student` block for the result slip; returns `reason: "unpaid"` until the course is paid |
+| GET | `/api/me/photo` | cookie or Bearer | Passport photo proxied from the portal (`Cache-Control: private`); `404` when the student has none |
 | GET | `/api/health` | public | `200 ok` when MySQL answers, `503` otherwise (no error details leaked) |
 
 Bearer tokens exist because a packaged WebView cannot rely on cookies; the
@@ -208,11 +227,17 @@ browser build uses both.
 
 ## How authentication works
 
-1. **New account** — `/sign-up` posts to `/api/auth/signup`. The handler first
-   checks whether the e-mail matches an active `stud2022` row. If it does, it
-   returns `{ needsStudentSetup: true }` and the client goes to
+1. **New account** — `/sign-up` posts to `/api/auth/signup`. The service decides
+   in this order: an existing app account returns “already registered, please
+   sign in” (the client opens `/sign-in?notice=exists`), so a student who already
+   completed the mobile setup is never sent back to it; otherwise an active
+   `stud2022` row returns `{ needsStudentSetup: true }` and the client opens
    `/student-setup`; otherwise a `users` row is created with role `user`,
-   `stud2022_id = NULL` (never an admin), and the client signs in immediately.
+   `stud2022_id = NULL` (never an admin) and a 6-digit code is e-mailed. The
+   client then opens `/verify-email?email=…&sent=1`, where the code is entered,
+   can be resent after 60 seconds, and must be confirmed before the first
+   sign-in. If delivery fails (`provider-error`) the same screen opens with a
+   “could not send” notice so a new code can be requested.
 2. **Existing student** — `/student-setup` posts e-mail + registration number +
    date of birth + a new password to `/api/auth/student-setup`. On a match it
    creates or updates the `users` row: bcrypt `password_hash`, `stud2022_id`,
@@ -232,8 +257,13 @@ browser build uses both.
    (`failed_logins`, `locked_until`). Password policy: 10–128 characters with
    upper-case, lower-case, digit and symbol, enforced by the API and mirrored in
    the forms (`src/lib/auth/password-rules.ts`).
-7. **Forgotten passwords** — there is no self-service reset yet; the sign-in
-   screen tells students to contact the school office.
+7. **Forgotten passwords** — self-service reset at `/forgot-password`:
+   e-mail → 6-digit code → new password + confirmation. The address is checked
+   before any code is sent: an unknown address returns `account-not-found` and an
+   unverified one `email-not-verified` (the page offers “Verify my email first”).
+   Verifying the code returns a single-use ticket (only its SHA-256 is stored,
+   15 min) that `POST /api/auth/reset-password` exchanges for the new password.
+   Every existing session for the account is revoked and the ticket is cleared.
 
 ## Learning library (lessons, likes, comments)
 
@@ -289,6 +319,8 @@ into `course_reg`; nothing else writes to them.
 | `migrations/001_password_auth.sql` | Adds `password_hash`, `email_verified_at`, `failed_logins`, `locked_until`, `stud2022_id` + unique key |
 | `migrations/002_drop_magic_links.sql` | Removes the abandoned magic-link table |
 | `migrations/003_user_default_role.sql` | Changes `users.role` default to `user` (existing rows untouched) |
+| `migrations/004_verification_challenges.sql` | Adds the `verification_challenges` table (HMAC OTPs, attempts, cooldown) |
+| `migrations/005_password_reset.sql` | Adds `users.reset_token_hash` / `reset_token_expires_at` for the single-use reset ticket |
 
 ```bash
 node scripts/run-migration.mjs              # localhost only
@@ -305,13 +337,13 @@ src/
   app/
     (app)/            signed-in screens: home, courses, learning, result,
                       my-courses, register, pay, profile (+ shared layout)
-    (auth)/           sign-in, sign-up, student-setup (+ brand layout)
+    (auth)/           sign-in, sign-up, verify-email, forgot-password, student-setup (+ brand layout)
     api/              auth/*, courses, courses/[id], me/*, health
     layout.tsx        metadata, manifest, theme bootstrap, SW registration
     page.tsx          session-aware redirect
   components/mobile/  AppMenu, AppTopBar, MobileAppHeader, MobileBottomNav,
                       MobileScreen, MobileStates, MobileLoaders, MobileCourseCard,
-                      PasswordInput, VideoPlayerSheet
+                      PasswordInput, OtpCodeInput, VideoPlayerSheet
   lib/
     auth/             auth-service, mysql-users/sessions/students, passwords,
                       password-rules, rate-limit, verification, dev-mailer,
@@ -329,6 +361,7 @@ src/
 migrations/           numbered SQL migrations
 scripts/              run-migration.mjs, anonymize-demo.sql, seed-demo.sql, export-demo.md
 tests/auth/           node:test suites for the auth core
+tests/integration/    opt-in MySQL 9.7 OTP integration tests (local only)
 public/               manifest, service worker, icons, brand + partner logos
 docs/                 project state and auth design notes
 ```
@@ -343,6 +376,7 @@ docs/                 project state and auth design notes
 | `npm run lint` | ESLint over the whole project |
 | `npm run test:auth` | Compile `src/lib/auth` with `tsc`, then run `node --test tests/auth/*.test.mjs` |
 | `npm run test:auth:build` | Only the compile step (output in `tests/build/auth`, git-ignored) |
+| `npm run test:auth:integration -- --allow-local-db` | Opt-in MySQL 9.7 integration tests; refuses to run without the flag and only targets local `alphadeutsch` |
 | `node scripts/run-migration.mjs` | Apply pending SQL migrations |
 
 ## Testing
@@ -357,15 +391,87 @@ npm run test:auth
 `tsconfig.auth-tests.json` compiles the modules under `src/lib/auth` to CommonJS
 in `tests/build/auth`, and `node:test` loads them through
 `tests/auth/preload.cjs` (a `server-only` stub). The current suite is
-**31 tests across 5 test files (7 `describe` suites)**:
+**99 tests across 6 test files (21 `describe` suites)**:
 
 | Suite | Covers |
 | --- | --- |
-| `auth-service.test.mjs` | Signup, duplicate/generic errors, e-mail verification, sign-in, lockout |
-| `sessions.test.mjs` | Token creation, validation, expiry, revocation, cookie building |
-| `passwords.test.mjs` | bcrypt hashing and policy rules |
-| `verification.test.mjs` | Code issuance, TTL, attempt limits, single use |
+| `auth-service.test.mjs` | Signup, verification, lockout, resend cooldown, store/provider failures |
 | `auth-store.test.mjs` | Store selection (`memory` only in tests) and DB config validation |
+| `challenge-store.test.mjs` | Memory + MySQL challenge stores: OTP HMAC, TTL, attempt caps, atomic consume, bounded cleanup |
+| `passwords.test.mjs` | bcrypt hashing and policy rules |
+| `sessions.test.mjs` | Token creation, validation, expiry, revocation, cookie building |
+| `smtp-mailer.test.mjs` | SMTP config, provider selection, adapter behaviour, lazy initialization |
+
+### MySQL integration tests (opt-in, local only)
+
+```bash
+npm run test:auth:integration -- --allow-local-db
+```
+
+The runner refuses to start without `--allow-local-db`, and refuses a stale or
+incomplete `tests/build/auth` (run `npm run test:auth:build`). It loads
+`.env.local` and then forces `NODE_ENV=test`, `AUTH_STORE=mysql` and
+`AUTH_EMAIL_PROVIDER=dev`.
+
+`.env.local` is the **only** accepted source for `DB_HOST`, `DB_PORT`, `DB_USER`,
+`DB_PASSWORD`, `DB_NAME` and `INTEGRATION_EXPECTED_SERVER_UUID`: values inherited
+from the shell are dropped before the file is read, and the guard refuses to run
+if one of them did not come from the file. `INTEGRATION_EXPECTED_SERVER_UUID`
+must equal the local server's `@@server_uuid` exactly — a loopback host cannot
+distinguish a local server from an SSH tunnel that forwards a remote one, but the
+UUID can. `SMTP_*` variables are deleted after the load, so an integration run
+cannot contact a mail server even if one is configured.
+
+Before any write the guard verifies that `DB_HOST` resolves only to loopback,
+`DB_NAME` is exactly `alphadeutsch`, the connected database name, port, version
+(9.7) and server UUID match the configuration, the target is writable, the
+`CURRENT_USER()` account is loopback-scoped (not `%`), the confirmed peer address
+is loopback (an unreadable process list is a failure, not a pass), migration
+004's table and required columns exist, and the account's **effective
+privileges** (direct grants plus every granted role, active or inactive) are
+exactly the DML the suites need.
+
+The account must hold nothing else: no `*.*` grant, no pattern database scope, no
+grant on another database, no grant on a table the suites never touch, no DDL, no
+`ALL PRIVILEGES` and no `GRANT OPTION`. Roles are inspected with
+`SHOW GRANTS … USING`, and an inactive role still counts because `SET ROLE` can
+enable it at any time. The recommended setup is a dedicated account with
+table-scoped grants:
+
+```sql
+CREATE USER 'alphadeutsch_it'@'localhost' IDENTIFIED BY '<local password only>';
+GRANT SELECT, INSERT, UPDATE, DELETE ON `alphadeutsch`.`users` TO 'alphadeutsch_it'@'localhost';
+GRANT SELECT, INSERT, UPDATE, DELETE ON `alphadeutsch`.`verification_challenges` TO 'alphadeutsch_it'@'localhost';
+GRANT SELECT, DELETE ON `alphadeutsch`.`sessions` TO 'alphadeutsch_it'@'localhost';
+```
+
+A database-wide grant (`ON alphadeutsch.*`) is accepted only when
+`information_schema` shows that the schema holds nothing but those three tables;
+otherwise it is refused as too broad. That is why the application's own
+`alphadeutsch_app` account is normally **not** suitable for the suite.
+
+Every statement on the test pool passes a write barrier that rejects DDL and any
+`DELETE`/`UPDATE` without a row-scoping predicate, so the production
+expired-challenge sweep (a global `DELETE … LIMIT 100`) cannot remove rows from
+real accounts. Tests use `@example.invalid` mailboxes, never send e-mail (the dev
+outbox or an injected fake SMTP transport is used), and delete only users whose
+stored `(id, email)` still match the registered test row. Cleanup also
+reconciles anything created under the run's unique e-mail prefix (for example a
+signup that inserted the user and then failed), runs on `SIGINT`/`SIGTERM`, and
+verifies with `COUNT(*)` queries that no user, challenge or session row survives.
+Files run serially, while concurrency is exercised inside individual tests across
+two independent pools. `npm run test:auth` stays DB-free and does not include
+these suites.
+
+The runner also refuses any driver version other than `mysql2` 3.24.5: the suite
+depends on that release's `timezone: "Z"` DATETIME parsing, while `package.json`
+keeps a caret range for the application.
+
+If a run is killed before its hooks complete, follow
+[`docs/integration-test-cleanup.md`](docs/integration-test-cleanup.md). It lists
+the read-only queries that identify a run's leftovers and the one-row-at-a-time
+procedure that verifies the id and the exact e-mail address before deleting
+anything. Nothing in this project removes `otp-it+%` rows in bulk.
 
 Manual checks used for the UI and the MySQL routes:
 
