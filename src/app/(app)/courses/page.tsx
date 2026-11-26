@@ -1,119 +1,101 @@
-"use client";
+import Link from "next/link";
+import { ChevronRight } from "lucide-react";
 
-import { useEffect, useMemo, useState } from "react";
-
-import { MobileCourseCard } from "@/components/mobile/MobileCourseCard";
-import { MobileLoadingList, MobileRetryButton, MobileStateCard } from "@/components/mobile/MobileStates";
 import { MobileScreen } from "@/components/mobile/MobileScreen";
-import { fetchOpenCourses, isOfflineError, type MobileCourseRow } from "@/lib/mobile-api";
+import { ASSESSMENTS, LEVELS, type LevelId } from "@/lib/assessment/config";
 
-type Status = "loading" | "ready" | "empty" | "offline" | "error";
+/**
+ * Student-facing Courses page.
+ *
+ * Presents the six CEFR levels with a placement assessment entry point. The
+ * database-backed course catalogue (prices, modes, per-course detail pages and
+ * `/api/courses`) is intentionally NOT shown here any more — those records and
+ * endpoints are untouched and remain available for future use (e.g. the AppTopBar
+ * search and the `/courses/[id]` detail route still work).
+ */
 
-const modes = ["All", "On-Site", "Online", "Private", "Online Private"] as const;
+/**
+ * Each level gets its own quiet accent so the list is scannable at a glance
+ * without adding extra chrome or badges.
+ */
+const LEVEL_THEME: Record<LevelId, { chip: string; arrow: string }> = {
+  a1: {
+    chip: "bg-emerald-500/10 text-emerald-700 ring-emerald-500/20 dark:text-emerald-400",
+    arrow: "text-emerald-600/70 dark:text-emerald-400/70",
+  },
+  a2: {
+    chip: "bg-sky-500/10 text-sky-700 ring-sky-500/20 dark:text-sky-400",
+    arrow: "text-sky-600/70 dark:text-sky-400/70",
+  },
+  b1: {
+    chip: "bg-violet-500/10 text-violet-700 ring-violet-500/20 dark:text-violet-400",
+    arrow: "text-violet-600/70 dark:text-violet-400/70",
+  },
+  b2: {
+    chip: "bg-amber-500/10 text-amber-700 ring-amber-500/25 dark:text-amber-400",
+    arrow: "text-amber-600/70 dark:text-amber-400/70",
+  },
+};
 
-export default function MobileCoursesPage() {
-  const [courses, setCourses] = useState<MobileCourseRow[]>([]);
-  const [status, setStatus] = useState<Status>("loading");
-  const [mode, setMode] = useState<(typeof modes)[number]>("All");
-  const [reloadKey, setReloadKey] = useState(0);
-  const retrying = status === "loading";
-
-  useEffect(() => {
-    const controller = new AbortController();
-    setStatus("loading");
-    fetchOpenCourses(controller.signal)
-      .then((rows) => {
-        setCourses(rows);
-        setStatus(rows.length === 0 ? "empty" : "ready");
-      })
-      .catch((error: unknown) => {
-        if (controller.signal.aborted) return;
-        setStatus(isOfflineError(error) ? "offline" : "error");
-      });
-    return () => controller.abort();
-  }, [reloadKey]);
-
-  const visible = useMemo(() => {
-    if (mode === "All") return courses;
-    return courses.filter((course) => course.display === mode);
-  }, [courses, mode]);
-
+export default function LevelsPage() {
   return (
     <MobileScreen
-      eyebrow="Course catalogue"
-      title="Open German courses"
-      description="Live Alpha Deutsch levels, learning modes, and prices from the courses catalogue. Closed courses stay unavailable for registration."
+      title="Choose your level"
+      description="Start a short assessment for the German level you want to register for."
     >
-      <div
-        role="tablist"
-        aria-label="Filter courses by learning mode"
-        className="flex gap-2 overflow-x-auto pb-1"
-      >
-        {modes.map((item) => {
-          const active = item === mode;
+      {/* Flex column: each card is an independent row, and nothing here can
+          contribute a min-content width wider than the screen. */}
+      <div className="flex flex-col gap-2.5">
+        {LEVELS.map((level) => {
+          const active = ASSESSMENTS[level.id].active;
+          const theme = LEVEL_THEME[level.id];
+
+          const content = (
+            <>
+              <span
+                aria-hidden="true"
+                className={`grid size-11 shrink-0 place-items-center rounded-xl text-[13px] font-black ring-1 ${theme.chip}`}
+              >
+                {level.code}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-[15px] font-black leading-tight text-app-text">
+                  {level.name}
+                </span>
+                <span className="mt-0.5 block line-clamp-2 text-[12px] leading-5 text-app-muted">
+                  {level.tagline}
+                </span>
+              </span>
+              {active ? (
+                <ChevronRight className={`size-5 shrink-0 ${theme.arrow}`} aria-hidden="true" />
+              ) : (
+                <span className="shrink-0 text-[11px] font-bold text-app-muted">Soon</span>
+              )}
+            </>
+          );
+
+          const card =
+            "flex min-w-0 items-center gap-3.5 rounded-2xl border border-app-border bg-app-surface px-4 py-3.5 shadow-[0_1px_2px_rgba(15,23,42,0.04)]";
+
+          if (!active) {
+            return (
+              <div key={level.id} aria-disabled="true" className={`${card} opacity-60`}>
+                {content}
+              </div>
+            );
+          }
+
           return (
-            <button
-              key={item}
-              type="button"
-              role="tab"
-              aria-selected={active}
-              onClick={() => setMode(item)}
-              className={`focus-ring inline-flex min-h-[44px] shrink-0 items-center justify-center rounded-full px-4 text-[13px] font-black transition active:scale-[0.98] ${
-                active
-                  ? "bg-app-accent text-app-on-accent"
-                  : "bg-app-surface text-app-muted ring-1 ring-app-border"
-              }`}
+            <Link
+              key={level.id}
+              href={`/courses/level/${level.id}`}
+              className={`${card} focus-ring transition active:scale-[0.995]`}
             >
-              {item}
-            </button>
+              {content}
+            </Link>
           );
         })}
       </div>
-
-      {status === "loading" ? <MobileLoadingList /> : null}
-
-      {status === "ready" ? (
-        visible.length === 0 ? (
-          <MobileStateCard
-            title="No courses for this mode"
-            description="Try another learning mode, or check the full open catalogue again."
-            icon="🔍"
-          />
-        ) : (
-          <div className="grid gap-3">
-            {visible.map((course) => (
-              <MobileCourseCard key={course.id} course={course} />
-            ))}
-          </div>
-        )
-      ) : null}
-
-      {status === "empty" ? (
-        <MobileStateCard
-          title="No open courses right now"
-          description="There are currently no courses open for registration. Please check back soon."
-          icon="📚"
-          action={<MobileRetryButton busy={retrying} onRetry={() => { setStatus("loading"); setReloadKey((value) => value + 1); }} label="Refresh" />}
-        />
-      ) : null}
-
-      {status === "offline" ? (
-        <MobileStateCard
-          title="You are offline"
-          description="The catalogue needs an internet connection because prices are loaded from the live backend."
-          icon="📶"
-          action={<MobileRetryButton busy={retrying} onRetry={() => { setStatus("loading"); setReloadKey((value) => value + 1); }} />}
-        />
-      ) : null}
-
-      {status === "error" ? (
-        <MobileStateCard
-          title="Course catalogue unavailable"
-          description="We could not load the live course list. Please try again later."
-          icon="⚠️"
-          action={<MobileRetryButton busy={retrying} onRetry={() => { setStatus("loading"); setReloadKey((value) => value + 1); }} />}
-        />
-      ) : null}
     </MobileScreen>
   );
 }
