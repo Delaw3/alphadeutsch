@@ -9,6 +9,7 @@ import {
   saveSessionToken,
   setUnauthorizedHandler,
 } from "@/lib/apiFetch";
+import { normalizePathname } from "@/lib/routes";
 import { clearToken, getToken, hydrate, setToken } from "@/lib/token-store";
 
 export type Me = {
@@ -35,8 +36,12 @@ const AuthContext = createContext<AuthContextValue | null>(null);
  * Routes that anonymous users must be allowed to open. `/student-setup` is the
  * "already a student" flow that signup redirects to, so it has to be public —
  * otherwise the guard bounces the user straight back to /sign-in.
+ *
+ * Entries are written without a trailing slash; `usePathname()` is normalised
+ * with `normalizePathname()` before any comparison (the mobile export runs with
+ * `trailingSlash: true`, so raw pathnames look like `/sign-up/`).
  */
-const PUBLIC_ROUTES = new Set(["/sign-in", "/sign-up", "/student-setup"]);
+const PUBLIC_ROUTES = new Set(["/sign-in", "/sign-up", "/student-setup", "/verify-email", "/forgot-password"]);
 
 /**
  * Token store facade. Persistence is platform-aware (localStorage on the web,
@@ -48,10 +53,17 @@ export const tokenStorage = {
     return getToken();
   },
   set(token: string): void {
-    void setToken(token).catch(() => {});
+    // Fire-and-forget so callers can render immediately, but surface the reason
+    // instead of swallowing it: token-store rejects when the token could not be
+    // persisted (e.g. Keystore unavailable).
+    void setToken(token).catch((err) => {
+      console.error("[auth] session token was not persisted", err);
+    });
   },
   clear(): void {
-    void clearToken().catch(() => {});
+    void clearToken().catch((err) => {
+      console.error("[auth] session token was not cleared from storage", err);
+    });
   },
 };
 
@@ -77,6 +89,10 @@ export function AuthProvider({
 }) {
   const router = useRouter();
   const pathname = usePathname() ?? "/";
+  // Normalise once: the mobile export (`trailingSlash: true`) reports routes as
+  // "/sign-up/", which must still match the slash-less PUBLIC_ROUTES entries and
+  // the "/sign-in" comparison below. No-op on the web build.
+  const routePath = normalizePathname(pathname);
   const [state, setState] = useState<AuthState>("loading");
   const [user, setUser] = useState<Me | null>(null);
 
@@ -89,9 +105,9 @@ export function AuthProvider({
       clearSessionToken();
       setState("anonymous");
       setUser(null);
-      if (pathname !== "/sign-in") router.replace("/sign-in");
+      if (routePath !== "/sign-in") router.replace("/sign-in");
     });
-  }, [pathname, router]);
+  }, [routePath, router]);
 
   useEffect(() => {
     let mounted = true;
@@ -137,21 +153,32 @@ export function AuthProvider({
 
   useEffect(() => {
     if (state === "loading") return;
-    if (state === "authenticated" && PUBLIC_ROUTES.has(pathname)) {
+    if (state === "authenticated" && PUBLIC_ROUTES.has(routePath)) {
       router.replace("/home");
       return;
     }
-    if (state === "anonymous" && !PUBLIC_ROUTES.has(pathname) && pathname !== "/") {
+    if (state === "anonymous" && !PUBLIC_ROUTES.has(routePath) && routePath !== "/") {
       router.replace("/sign-in");
     }
-  }, [state, pathname, router]);
+  }, [state, routePath, router]);
 
   const signIn = (token: string, user: Me) => {
     tokenStorage.set(token);
     saveSessionToken(token);
     setState("authenticated");
     setUser(user);
-    router.replace("/home");
+    // Navigation is owned by the guard effect above. Calling router.replace here
+    // as well started two overlapping "/home" transitions, which can abort each
+    // other and leave the sign-in screen mounted after a successful POST.
+    // The fallback guarantees the outcome even if a client-side transition is
+    // dropped: a hard navigation restores the session from persisted storage.
+    if (typeof window !== "undefined") {
+      window.setTimeout(() => {
+        if (PUBLIC_ROUTES.has(normalizePathname(window.location.pathname))) {
+          window.location.replace("/home");
+        }
+      }, 5000);
+    }
   };
 
   const signOut = async () => {

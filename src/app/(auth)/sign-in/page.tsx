@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-import { apiFetch, saveSessionToken } from "@/lib/apiFetch";
+import { apiErrorCode, apiFetch } from "@/lib/apiFetch";
 import { useAuth } from "@/lib/auth-provider";
 import { PasswordInput } from "@/components/mobile/PasswordInput";
 
@@ -12,6 +12,8 @@ const NOTICES: Record<string, string> = {
   exists: "This email is already registered. Sign in to continue.",
   created: "Your account was created. Sign in to continue.",
   setup: "Your mobile login was created. Sign in with your new password.",
+  verified: "Email verified. Sign in with your password to continue.",
+  reset: "Password updated. Sign in with your new password.",
 };
 
 export default function SignInPage() {
@@ -20,6 +22,7 @@ export default function SignInPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [needsVerify, setNeedsVerify] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   // Prefill the email and explain why we were redirected here (read from the
@@ -40,6 +43,7 @@ export default function SignInPage() {
     e.preventDefault();
     if (submitting) return;
     setError("");
+    setNeedsVerify(false);
     setSubmitting(true);
     try {
       const data = await apiFetch<{
@@ -53,7 +57,10 @@ export default function SignInPage() {
       });
       const token = data?.sessionToken;
       if (!token) throw new Error("No session token returned.");
-      saveSessionToken(token);
+      // signIn() persists the token (token-store) and flips the app to
+      // "authenticated"; the auth guard then performs the single transition to
+      // /home. Keep the button in its "Signing in…" state until that happens —
+      // re-enabling it made a slow transition look like a failed sign-in.
       signIn(token, {
         id: data.userId ?? 0,
         email: data.email ?? email.trim(),
@@ -61,8 +68,10 @@ export default function SignInPage() {
         role: data.role ?? "user",
       });
     } catch (err: unknown) {
+      // A 403 with this code means the password was right but the e-mail is
+      // not confirmed: offer the verification screen instead of a dead end.
+      setNeedsVerify(apiErrorCode(err) === "email-not-verified");
       setError(err instanceof Error ? err.message : "Sign-in failed. Please try again.");
-    } finally {
       setSubmitting(false);
     }
   }
@@ -115,6 +124,15 @@ export default function SignInPage() {
         </p>
       ) : null}
 
+      {needsVerify ? (
+        <Link
+          href={`/verify-email?email=${encodeURIComponent(email.trim())}`}
+          className="focus-ring inline-flex min-h-[48px] w-full items-center justify-center rounded-full border border-app-border bg-app-surface-2 text-sm font-black text-app-text transition active:scale-[0.98]"
+        >
+          Verify my email
+        </Link>
+      ) : null}
+
       <button
         type="submit"
         disabled={submitting}
@@ -142,7 +160,13 @@ export default function SignInPage() {
       </Link>
     </p>
     <p className="text-center text-sm text-app-muted">
-      Forgot your password? <span className="font-black">Contact the school office.</span>
+      Forgot your password?{" "}
+      <Link
+        href="/forgot-password"
+        className="focus-ring font-black text-app-text underline underline-offset-4"
+      >
+        Reset it
+      </Link>
     </p>
     </>
   );

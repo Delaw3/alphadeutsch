@@ -10,6 +10,7 @@ const {
   SmtpConfigError,
   readSmtpConfig,
   buildVerificationEmail,
+  resolveEmailLogoUrl,
   SMTP_TIMEOUTS,
 } = require("../build/auth/smtp-mailer.js");
 const { createMailer, resolveEmailProvider, createLazyMailer } = require("../build/auth/email-provider.js");
@@ -140,6 +141,18 @@ describe("SMTP configuration", () => {
     assert.equal(config.secure, false);
   });
 
+  it("accepts EMAIL_FROM as the legacy alias for SMTP_FROM", () => {
+    const env = { ...SMTP_ENV };
+    delete env.SMTP_FROM;
+    env.EMAIL_FROM = "legacy@alphadeutsch.com";
+    assert.equal(readSmtpConfig(env).from, "legacy@alphadeutsch.com");
+  });
+
+  it("prefers SMTP_FROM when both names are configured", () => {
+    const config = readSmtpConfig({ ...SMTP_ENV, EMAIL_FROM: "legacy@alphadeutsch.com" });
+    assert.equal(config.from, "appcentre@alphadeutsch.com");
+  });
+
   it("rejects port 25", () => {
     assert.throws(
       () => readSmtpConfig({ ...SMTP_ENV, SMTP_PORT: "25" }),
@@ -194,7 +207,7 @@ describe("verification e-mail content", () => {
     });
     assert.equal(email.subject, "Your Alpha Deutsch verification code");
     assert.match(email.text, new RegExp(CODE));
-    assert.match(email.text, /expires in 15 minutes/);
+    assert.match(email.text, /expires in 10 minutes/);
     assert.match(email.html, new RegExp(CODE));
     assert.match(email.html, /Verify your email address/);
     // Footer must come from the configured sender, never a hardcoded address.
@@ -203,6 +216,90 @@ describe("verification e-mail content", () => {
     assert.match(email.html, /Alpha Notifications/);
     assert.match(email.html, /notifications@alpha\.example/);
     assert.doesNotMatch(email.html, /appcentre@alphadeutsch\.com/);
+  });
+
+  it("uses reset wording for a reset code, with the same code and expiry", () => {
+    const email = buildVerificationEmail({
+      code: CODE,
+      purpose: "reset",
+      from: "notifications@alpha.example",
+      fromName: "Alpha Deutsch",
+    });
+    assert.equal(email.subject, "Reset your Alpha Deutsch password");
+    assert.match(email.html, /Reset your password/);
+    assert.match(email.text, /reset your password/i);
+    // A reset must never ask the recipient to "verify" their address.
+    assert.doesNotMatch(email.html, /Verify your email address/);
+    assert.doesNotMatch(email.text, /verify your email address/i);
+    assert.match(email.text, new RegExp(CODE));
+    assert.match(email.html, new RegExp(CODE));
+    assert.match(email.text, /expires in 10 minutes/);
+  });
+});
+
+describe("branded e-mail header", () => {
+  const BASE = {
+    code: CODE,
+    purpose: "signup",
+    from: "notifications@alpha.example",
+    fromName: "Alpha Deutsch",
+  };
+
+  it("renders the app logo as the header from an absolute URL", () => {
+    const email = buildVerificationEmail({
+      ...BASE,
+      logoUrl: "https://app.alphadeutsch.com/brand/logo-256.png",
+    });
+    assert.match(
+      email.html,
+      /<img src="https:\/\/app\.alphadeutsch\.com\/brand\/logo-256\.png" width="48" height="48" alt="Alpha Deutsch"/,
+    );
+    // Header must be table-based so Gmail/Outlook keep the layout.
+    assert.match(email.html, /<table role="presentation"/);
+    // Exactly one image: no tracking pixels are added.
+    assert.equal((email.html.match(/<img /g) ?? []).length, 1);
+    // The plain-text alternative never carries markup or remote assets.
+    assert.doesNotMatch(email.text, /<img|https?:\/\//);
+  });
+
+  it("falls back to the text wordmark when no logo URL is available", () => {
+    const email = buildVerificationEmail({ ...BASE, logoUrl: null });
+    assert.doesNotMatch(email.html, /<img /);
+    assert.match(email.html, />Alpha Deutsch</);
+  });
+
+  it("resolves the URL from EMAIL_LOGO_URL, then NEXT_PUBLIC_SITE_URL, and rejects unsafe values", () => {
+    assert.equal(
+      resolveEmailLogoUrl({ EMAIL_LOGO_URL: "https://cdn.example/logo.png" }),
+      "https://cdn.example/logo.png",
+    );
+    assert.equal(
+      resolveEmailLogoUrl({ NEXT_PUBLIC_SITE_URL: "https://app.example/" }),
+      "https://app.example/brand/logo-256.png",
+    );
+    assert.equal(resolveEmailLogoUrl({}), null);
+    assert.equal(resolveEmailLogoUrl({ NEXT_PUBLIC_SITE_URL: "  " }), null);
+    assert.equal(resolveEmailLogoUrl({ EMAIL_LOGO_URL: "javascript:alert(1)" }), null);
+    assert.equal(resolveEmailLogoUrl({ EMAIL_LOGO_URL: "brand/logo-256.png" }), null);
+    assert.equal(resolveEmailLogoUrl({ EMAIL_LOGO_URL: "https://cdn.example/a\r\nb.png" }), null);
+  });
+
+  it("adds the logo to delivered mail when the site URL is configured", async () => {
+    const previous = process.env.NEXT_PUBLIC_SITE_URL;
+    process.env.NEXT_PUBLIC_SITE_URL = "https://app.alphadeutsch.com";
+    const { adapter, transport } = makeAdapter(SMTP_ENV);
+    const capture = captureConsole();
+    try {
+      await adapter.sendVerificationCode({ to: RECIPIENT, purpose: "signup", code: CODE });
+    } finally {
+      capture.restore();
+      if (previous === undefined) delete process.env.NEXT_PUBLIC_SITE_URL;
+      else process.env.NEXT_PUBLIC_SITE_URL = previous;
+    }
+    assert.match(
+      transport.calls[0].message.html,
+      /<img src="https:\/\/app\.alphadeutsch\.com\/brand\/logo-256\.png"/,
+    );
   });
 });
 

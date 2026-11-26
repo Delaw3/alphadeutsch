@@ -1,3 +1,5 @@
+import { createHash, randomBytes } from "node:crypto";
+
 import "server-only";
 
 import {
@@ -10,7 +12,7 @@ import {
 } from "./auth-errors";
 import type { MailAdapter } from "./dev-mailer";
 import type { StudentStore } from "./mysql-students";
-import { readCodePepper } from "./otp";
+import { digestsEqual, readCodePepper } from "./otp";
 import { dummyPasswordCompare, hashPassword, verifyPassword } from "./passwords";
 import { MemoryRateLimiter, RATE_LIMITS } from "./rate-limit";
 import { createSession, revokeSession, type SessionStore } from "./sessions";
@@ -18,6 +20,8 @@ import { consumeChallenge, issueChallenge, type ChallengeStore } from "./verific
 
 export const MAX_FAILED_LOGINS = 5;
 export const LOCKOUT_DURATION_MS = 15 * 60_000; // 15 minutes
+/** How long the ticket from a verified reset code stays usable. */
+export const RESET_TICKET_TTL_MS = 15 * 60_000;
 
 export type AppUser = {
   id: number;
@@ -30,6 +34,9 @@ export type AppUser = {
   lockedUntil: number | null;
   stud2022Id: number | null;
   createdAt: number;
+  /** SHA-256 of the single-use password-reset ticket, null when none is active. */
+  resetTokenHash: string | null;
+  resetTokenExpiresAt: number | null;
 };
 
 export type UserStore = {
@@ -46,6 +53,10 @@ export type UserStore = {
   markEmailVerified(id: number, at: number): Promise<void>;
   recordFailedLogin(id: number, failedLogins: number, lockedUntil: number | null): Promise<void>;
   resetFailedLogins(id: number): Promise<void>;
+  /** Stores (or clears, with `null`) the single-use reset ticket. */
+  setResetTicket(id: number, tokenHash: string | null, expiresAt: number | null): Promise<void>;
+  /** Replaces the password hash and clears the ticket and any lockout. */
+  updatePassword(id: number, passwordHash: string): Promise<void>;
 };
 
 export class MemoryUserStore implements UserStore {
@@ -93,6 +104,8 @@ export class MemoryUserStore implements UserStore {
       lockedUntil: null,
       stud2022Id: input.stud2022Id ?? null,
       createdAt: now,
+      resetTokenHash: null,
+      resetTokenExpiresAt: null,
     };
     this.rows.set(user.id, user);
     return { ...user };
@@ -115,6 +128,26 @@ export class MemoryUserStore implements UserStore {
     if (row) {
       this.rows.set(id, { ...row, failedLogins: 0, lockedUntil: null });
     }
+  }
+
+  async setResetTicket(id: number, tokenHash: string | null, expiresAt: number | null) {
+    const row = this.rows.get(id);
+    if (row) {
+      this.rows.set(id, { ...row, resetTokenHash: tokenHash, resetTokenExpiresAt: expiresAt });
+    }
+  }
+
+  async updatePassword(id: number, passwordHash: string) {
+    const row = this.rows.get(id);
+    if (!row) return;
+    this.rows.set(id, {
+      ...row,
+      passwordHash,
+      resetTokenHash: null,
+      resetTokenExpiresAt: null,
+      failedLogins: 0,
+      lockedUntil: null,
+    });
   }
 
   get size() {
@@ -150,9 +183,21 @@ export type AuthServiceDeps = {
   requireEmailVerify?: boolean;
   maxFailedLogins?: number;
   lockoutDurationMs?: number;
+  forgotLimiter?: MemoryRateLimiter;
 };
 
-export type SignupResult = { message: string; userId: number | null };
+export type SignupResult = {
+  message: string;
+  userId: number | null;
+  /**
+   * Set when the address belongs to an active `stud2022` row and **no app
+   * account exists yet**: the client continues to `/student-setup`. A student
+   * who already completed setup gets "already registered, please sign in"
+   * instead, so the setup form is never shown twice.
+   */
+  needsStudentSetup?: boolean;
+  email?: string;
+};
 
 export class AuthService {
   deps: AuthServiceDeps;
@@ -161,6 +206,7 @@ export class AuthService {
   private signinLimiter: MemoryRateLimiter;
   private verifyLimiter: MemoryRateLimiter;
   private resendLimiter: MemoryRateLimiter;
+  private forgotLimiter: MemoryRateLimiter;
 
   constructor(deps: AuthServiceDeps) {
     this.deps = deps;
@@ -168,20 +214,25 @@ export class AuthService {
     const i = RATE_LIMITS.signin;
     const v = RATE_LIMITS.verify;
     const r = RATE_LIMITS.resend;
+    const f = RATE_LIMITS.forgot;
     this.signupLimiter = deps.signupLimiter ?? new MemoryRateLimiter(s.limit, s.windowMs);
     this.regNoLimiter = deps.regNoLimiter ?? new MemoryRateLimiter(s.limit, s.windowMs);
     this.signinLimiter = deps.signinLimiter ?? new MemoryRateLimiter(i.limit, i.windowMs);
     this.verifyLimiter = deps.verifyLimiter ?? new MemoryRateLimiter(v.limit, v.windowMs);
     this.resendLimiter = deps.resendLimiter ?? new MemoryRateLimiter(r.limit, r.windowMs);
+    this.forgotLimiter = deps.forgotLimiter ?? new MemoryRateLimiter(f.limit, f.windowMs);
   }
 
   /**
    * Signup order:
-   * 1. Rate-limit (per IP and per reg_no)
-   * 2. Validate input
-   * 3. Check stud2022 (reg_no trimmed, dob normalised to YYYY-MM-DD, status Active, not already linked)
-   * 4. Only then handle an existing email ("already registered, please sign in")
-   * Mismatches return the same generic message.
+   * 1. Rate-limit (per IP)
+   * 2. Validate input (name, e-mail, password)
+   * 3. Existing app account -> "already registered, please sign in"
+   * 4. Active `stud2022` row and no account yet -> `needsStudentSetup`
+   * 5. Otherwise create a plain account and e-mail a verification code
+   *
+   * Step 3 comes before step 4 on purpose: a student who already finished the
+   * mobile setup must not be sent back to `/student-setup`.
    */
   async signup(input: {
     email: unknown;
@@ -210,11 +261,24 @@ export class AuthService {
       return { message: "already registered, please sign in", userId: null };
     }
 
+    // 4. No app account yet: an active student row gets the "already a student"
+    // setup flow. Because step 3 already returned for existing accounts, a
+    // student who completed the mobile setup is never sent back to it.
+    try {
+      const student = this.deps.students ? await this.deps.students.findByEmail(email) : null;
+      if (student) {
+        return { message: GENERIC_SIGNUP_MESSAGE, userId: null, needsStudentSetup: true, email };
+      }
+    } catch {
+      // A stud2022 outage must not block ordinary signups; the account can be
+      // linked to the student record later from inside the app.
+    }
+
     // Fail closed on OTP configuration before creating an account. This avoids
     // leaving an unverified account behind when the pepper is missing.
     readCodePepper();
 
-    // 4. Create the account as a plain 'user' (no student link yet).
+    // 5. Create the account as a plain 'user' (no student link yet).
     const passwordHash = await hashPassword(input.password as string, this.deps.passwordCost);
     let user: AppUser;
     try {
@@ -294,6 +358,136 @@ export class AuthService {
       trigger: "resend",
     });
     return { message: GENERIC_SIGNUP_MESSAGE };
+  }
+
+  /**
+   * Forgot-password step 1: verify the address and e-mail a reset code.
+   *
+   * The account must exist and its e-mail must be verified, otherwise the
+   * caller gets an explicit error (`account-not-found` / `email-not-verified`)
+   * and no code is sent. Signup already reveals account existence, so this does
+   * not open a new enumeration channel.
+   */
+  async requestPasswordReset(input: { email: unknown; clientIp?: string }): Promise<{ message: string }> {
+    const rate = this.forgotLimiter.check(`forgot:${input.clientIp ?? "unknown"}`);
+    if (!rate.allowed) throw new AuthError("rate-limited", 429, "Too many attempts. Please try again later.");
+
+    const email = normalizeEmail(input.email);
+    if (!email) throw new AuthError("invalid-input", 400, "Enter a valid email address.");
+
+    const user = await this.deps.users.findByEmail(email);
+    if (!user) {
+      throw new AuthError("account-not-found", 404, "No account was found with that email address.");
+    }
+    if (!user.emailVerifiedAt) {
+      throw new AuthError(
+        "email-not-verified",
+        403,
+        "This email is not verified yet. Verify it first, then reset your password.",
+      );
+    }
+
+    let issued;
+    try {
+      issued = await issueChallenge(this.deps.challenges, { userId: user.id, purpose: "reset" });
+    } catch (error) {
+      // A code was sent moments ago: that code is still valid, so the flow can
+      // continue instead of failing.
+      if (error instanceof AuthError && error.code === "code-resend-cooldown") {
+        return { message: "A code was sent recently. Use it, or wait a minute for a new one." };
+      }
+      throw error;
+    }
+    if (issued.status === "already-verified") {
+      return { message: "A code was sent recently. Use it, or wait a minute for a new one." };
+    }
+
+    await this.deps.mailer.sendVerificationCode({
+      to: user.email,
+      purpose: "reset",
+      code: issued.code,
+      trigger: "resend",
+    });
+    return { message: `We sent a 6-digit code to ${user.email}.` };
+  }
+
+  /**
+   * Forgot-password step 2: consumes the reset code and returns a single-use
+   * ticket (only its SHA-256 is stored) that step 3 exchanges for a new password.
+   */
+  async verifyResetCode(input: { email: unknown; code: unknown; clientIp?: string }): Promise<{ ticket: string }> {
+    const rate = this.verifyLimiter.check(`reset-verify:${input.clientIp ?? "unknown"}`);
+    if (!rate.allowed) throw new AuthError("rate-limited", 429, "Too many attempts. Please try again later.");
+
+    const email = normalizeEmail(input.email);
+    if (!email || typeof input.code !== "string") {
+      throw new AuthError("code-invalid", 400, "Invalid or expired verification code.");
+    }
+
+    const user = await this.deps.users.findByEmail(email);
+    if (!user || !user.emailVerifiedAt) {
+      throw new AuthError("code-invalid", 400, "Invalid or expired verification code.");
+    }
+
+    await consumeChallenge(this.deps.challenges, {
+      userId: user.id,
+      purpose: "reset",
+      code: input.code,
+    });
+
+    const ticket = randomBytes(32).toString("hex");
+    const tokenHash = createHash("sha256").update(ticket, "utf8").digest("hex");
+    await this.deps.users.setResetTicket(user.id, tokenHash, Date.now() + RESET_TICKET_TTL_MS);
+    return { ticket };
+  }
+
+  /**
+   * Forgot-password step 3: exchanges the ticket for a new password, clears any
+   * lockout and revokes every existing session for the account.
+   */
+  async resetPassword(input: {
+    email: unknown;
+    ticket: unknown;
+    password: unknown;
+    clientIp?: string;
+  }): Promise<{ reset: boolean }> {
+    const rate = this.verifyLimiter.check(`reset-apply:${input.clientIp ?? "unknown"}`);
+    if (!rate.allowed) throw new AuthError("rate-limited", 429, "Too many attempts. Please try again later.");
+
+    const expired = () =>
+      new AuthError("reset-token-invalid", 400, "This reset session has expired. Please start again.");
+
+    const email = normalizeEmail(input.email);
+    if (!email || typeof input.ticket !== "string" || input.ticket.length < 32) throw expired();
+
+    const passwordCheck = validateNewPassword(input.password);
+    if (!passwordCheck.ok) {
+      throw new AuthError("invalid-input", 400, passwordCheck.reason ?? "Choose a stronger password.");
+    }
+
+    const user = await this.deps.users.findByEmail(email);
+    if (!user || !user.emailVerifiedAt || !user.resetTokenHash || !user.resetTokenExpiresAt) throw expired();
+
+    if (user.resetTokenExpiresAt <= Date.now()) {
+      await this.deps.users.setResetTicket(user.id, null, null);
+      throw expired();
+    }
+
+    const presented = createHash("sha256").update(input.ticket, "utf8").digest("hex");
+    if (!digestsEqual(presented, user.resetTokenHash)) throw expired();
+
+    const passwordHash = await hashPassword(input.password as string, this.deps.passwordCost);
+
+    // Revoke every existing session BEFORE the password is written. Revoking
+    // afterwards — and swallowing the error — could answer 200 while sessions
+    // opened with the old password stayed valid, which is the opposite of what a
+    // reset must guarantee. This order keeps failure outcomes consistent:
+    // - revoke throws  -> nothing was written; the ticket is still valid, retry.
+    // - write throws   -> the user is merely signed out; retry with the ticket.
+    // The client sees an error instead of a false "password updated".
+    await this.deps.sessions.revokeAllForUser(user.id);
+    await this.deps.users.updatePassword(user.id, passwordHash);
+    return { reset: true };
   }
 
   async signin(input: {

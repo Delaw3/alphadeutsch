@@ -7,6 +7,7 @@ import type SMTPTransport from "nodemailer/lib/smtp-transport";
 import { logEmailSend } from "../monitoring/perf";
 import { AuthError } from "./auth-errors";
 import type { CodeDelivery, MailAdapter, VerificationMailInput } from "./dev-mailer";
+import { VERIFY_CODE_TTL_MS } from "./verification";
 
 /**
  * WhoGoHost SMTP delivery (Phase 2A).
@@ -85,7 +86,10 @@ export function readSmtpConfig(env: NodeJS.ProcessEnv = process.env): SmtpConfig
   const user = envValue(env, "SMTP_USER");
   // Passwords may contain leading/trailing spaces; only an empty value is invalid.
   const password = typeof env.SMTP_PASSWORD === "string" ? env.SMTP_PASSWORD : "";
-  const from = envValue(env, "SMTP_FROM");
+  // SMTP_FROM is the documented name. EMAIL_FROM is accepted as a legacy alias
+  // because deployments already carried it before the SMTP_* contract existed;
+  // SMTP_FROM always wins when both are set.
+  const from = envValue(env, "SMTP_FROM") || envValue(env, "EMAIL_FROM");
   const fromName = envValue(env, "SMTP_FROM_NAME") || "Alpha Deutsch";
   const port = Number(envValue(env, "SMTP_PORT") || "465");
   const secureRaw = (envValue(env, "SMTP_SECURE") || "true").toLowerCase();
@@ -110,7 +114,10 @@ export function readSmtpConfig(env: NodeJS.ProcessEnv = process.env): SmtpConfig
   return { host, port, secure: secure === true, user, password, from, fromName };
 }
 
-const CODE_TTL_MINUTES = 15;
+const CODE_TTL_MINUTES = VERIFY_CODE_TTL_MS / 60_000;
+
+/** Public path of the app logo used as the e-mail header. */
+export const EMAIL_LOGO_PATH = "/brand/logo-256.png";
 
 function escapeHtml(text: string): string {
   return text
@@ -122,22 +129,57 @@ function escapeHtml(text: string): string {
 }
 
 /**
- * Verification email content. Fixed copy only — the sole dynamic value is the
- * code, so no student data, links or tracking are included.
+ * Absolute URL for the logo in the e-mail header.
+ *
+ * `EMAIL_LOGO_URL` wins; otherwise `${NEXT_PUBLIC_SITE_URL}/brand/logo-256.png`.
+ * Only absolute http(s) URLs are accepted — a relative path is useless inside
+ * an inbox — and anything else returns `null`, which renders the text wordmark
+ * instead of a broken image. The logo lives in this app's `public/` folder, so
+ * the site URL (not the API host) is the correct base.
+ */
+export function resolveEmailLogoUrl(env: NodeJS.ProcessEnv = process.env): string | null {
+  const explicit = envValue(env, "EMAIL_LOGO_URL");
+  const siteUrl = envValue(env, "NEXT_PUBLIC_SITE_URL").replace(/\/+$/, "");
+  const candidate = explicit || (siteUrl ? `${siteUrl}${EMAIL_LOGO_PATH}` : "");
+  if (!candidate || candidate.length > 2048 || hasControlChars(candidate)) return null;
+  try {
+    const parsed = new URL(candidate);
+    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") return null;
+    if (!parsed.hostname) return null;
+    return parsed.toString();
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Verification email content. Fixed copy only — the sole dynamic values are the
+ * code and the logo URL, so no student data, links or tracking are included.
  */
 export function buildVerificationEmail(input: {
   code: string;
   purpose: CodeDelivery["purpose"];
   from: string;
   fromName: string;
+  /** Absolute logo URL for the header; `null`/absent renders the text wordmark. */
+  logoUrl?: string | null;
 }): { subject: string; text: string; html: string } {
   const code = input.code;
-  const subject = "Your Alpha Deutsch verification code";
+  // Reset codes must not tell the recipient to "verify" anything: same
+  // mechanism, different intent. Signup/claim keep the original wording.
+  const isReset = input.purpose === "reset";
+  const subject = isReset
+    ? "Reset your Alpha Deutsch password"
+    : "Your Alpha Deutsch verification code";
+  const heading = isReset ? "Reset your password" : "Verify your email address";
+  const lead = isReset
+    ? "Use the code below to reset your password for Alpha Deutsch."
+    : "Use the code below to verify your email address for Alpha Deutsch.";
 
   const text = [
     "Hello,",
     "",
-    "Use the code below to verify your email address for Alpha Deutsch.",
+    lead,
     "",
     `    ${code}`,
     "",
@@ -152,13 +194,28 @@ export function buildVerificationEmail(input: {
   const safeCode = escapeHtml(code);
   const safeFromName = escapeHtml(input.fromName);
   const safeFrom = escapeHtml(input.from);
+  const safeLogo = input.logoUrl ? escapeHtml(input.logoUrl) : null;
+
+  // Logo + wordmark header. Table-based with inline styles because Outlook and
+  // Gmail strip stylesheets; `alt` carries the brand when images are blocked.
+  const header = safeLogo
+    ? [
+        '<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;margin:0 0 20px;">',
+        '<tr><td style="padding:0 12px 0 0;vertical-align:middle;">',
+        `<img src="${safeLogo}" width="48" height="48" alt="Alpha Deutsch" style="display:block;width:48px;height:48px;border:0;border-radius:12px;outline:none;text-decoration:none;">`,
+        "</td>",
+        '<td style="vertical-align:middle;font-size:13px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#b45309;">Alpha Deutsch</td>',
+        "</tr></table>",
+      ].join("")
+    : '<p style="margin:0 0 24px;font-size:13px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#b45309;">Alpha Deutsch</p>';
+
   const html = [
     '<!doctype html><html lang="en"><body style="margin:0;padding:0;background:#f6f7fb;">',
     '<div style="padding:32px 16px;font-family:Arial,Helvetica,sans-serif;color:#0b1220;">',
     '<div style="max-width:520px;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:16px;padding:32px;">',
-    '<p style="margin:0 0 24px;font-size:13px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#b45309;">Alpha Deutsch</p>',
-    '<h1 style="margin:0 0 16px;font-size:20px;line-height:28px;color:#0b1220;">Verify your email address</h1>',
-    '<p style="margin:0 0 24px;font-size:15px;line-height:24px;color:#334155;">Use the code below to verify your email address for Alpha Deutsch.</p>',
+    header,
+    `<h1 style="margin:0 0 16px;font-size:20px;line-height:28px;color:#0b1220;">${escapeHtml(heading)}</h1>`,
+    `<p style="margin:0 0 24px;font-size:15px;line-height:24px;color:#334155;">${escapeHtml(lead)}</p>`,
     `<p style="margin:0 0 24px;padding:16px 24px;background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;font-size:30px;line-height:38px;font-weight:700;letter-spacing:8px;text-align:center;color:#0b1220;">${safeCode}</p>`,
     `<p style="margin:0 0 16px;font-size:14px;line-height:22px;color:#475569;">This code expires in ${CODE_TTL_MINUTES} minutes and can be used once.</p>`,
     '<p style="margin:0 0 24px;font-size:14px;line-height:22px;color:#475569;">If you did not request this email, you can safely ignore it.</p>',
@@ -245,6 +302,7 @@ export class SmtpMailAdapter implements MailAdapter {
       purpose: input.purpose,
       from: this.config.from,
       fromName: this.config.fromName,
+      logoUrl: resolveEmailLogoUrl(),
     });
     const purpose = input.trigger ?? input.purpose;
     const startedAt = performance.now();

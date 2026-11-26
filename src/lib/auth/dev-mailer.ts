@@ -72,6 +72,12 @@ export class DevOutboxAdapter implements MailAdapter {
       sentAt: Date.now(),
     };
     this.outbox.push(entry);
+    // Local-only escape hatch: with AUTH_EMAIL_PROVIDER=dev the code lives in
+    // memory only, so there would be no way to test the verification screen
+    // without SMTP. Opt-in, and the dev adapter can never run in production.
+    if (process.env.AUTH_DEV_EXPOSE_CODES === "true" && process.env.NODE_ENV !== "production") {
+      console.info(`[auth:dev] verification code for ${entry.to}: ${entry.code}`);
+    }
     return entry;
   }
 

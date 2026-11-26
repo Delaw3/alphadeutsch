@@ -184,96 +184,99 @@ describe("signup + verify + signin", () => {
     assert.equal(userAfterReset.lockedUntil, null);
   });
 
-  it("handles signup order: rate-limit -> validate -> check stud2022 -> check existing email", async () => {
-    const { service } = makeService();
+  it("keeps the generic message for invalid input and only flags real accounts", async () => {
+    const { service, users } = makeService();
 
-    // 1. Validation failure: missing reg_no or invalid dob returns generic message
-    const res1 = await service.signup({
-      email: "user1@example.com",
-      password: "Str0ng!Pass99",
-      reg_no: "",
-      dob: "2000-01-15",
-      clientIp: "ip-order-1",
-    });
-    assert.equal(res1.message, GENERIC_SIGNUP_MESSAGE);
+    // Missing name / invalid e-mail / weak password -> generic message, no account.
+    const invalidInputs = [
+      { email: "user1@example.com", password: "Str0ng!Pass99" },
+      { email: "not-an-email", name: "Bad Email", password: "Str0ng!Pass99" },
+      { email: "user2@example.com", name: "Weak Password", password: "short" },
+    ];
+    for (const [index, input] of invalidInputs.entries()) {
+      const res = await service.signup({ ...input, clientIp: `ip-invalid-${index}` });
+      assert.equal(res.message, GENERIC_SIGNUP_MESSAGE);
+      assert.equal(res.userId, null);
+      assert.equal(res.needsStudentSetup, undefined);
+    }
+    assert.equal(await users.findByEmail("user1@example.com"), null);
 
-    const res2 = await service.signup({
-      email: "user2@example.com",
-      password: "Str0ng!Pass99",
-      reg_no: "AD/2022/001",
-      dob: "not-a-date",
-      clientIp: "ip-order-2",
-    });
-    assert.equal(res2.message, GENERIC_SIGNUP_MESSAGE);
-
-    // 2. stud2022 check mismatches return same generic message
-    const res3 = await service.signup({
-      email: "user3@example.com",
-      password: "Str0ng!Pass99",
-      reg_no: "UNKNOWN/999",
-      dob: "2000-01-15",
-      clientIp: "ip-order-3",
-    });
-    assert.equal(res3.message, GENERIC_SIGNUP_MESSAGE);
-
-    const res4 = await service.signup({
-      email: "user4@example.com",
-      password: "Str0ng!Pass99",
-      reg_no: "AD/2022/001",
-      dob: "1980-01-01",
-      clientIp: "ip-order-4",
-    });
-    assert.equal(res4.message, GENERIC_SIGNUP_MESSAGE);
-
-    const res5 = await service.signup({
-      email: "user5@example.com",
-      password: "Str0ng!Pass99",
-      reg_no: "AD/2022/003", // Inactive
-      dob: "2001-11-30",
-      clientIp: "ip-order-5",
-    });
-    assert.equal(res5.message, GENERIC_SIGNUP_MESSAGE);
-
-    // 3. Successful first registration links stud2022_id
-    const res6 = await service.signup({
+    // A valid signup creates the account and issues a code.
+    const created = await service.signup({
       email: "first@example.com",
       name: "First Student",
       password: "Str0ng!Pass99",
-      reg_no: "  AD/2022/001  ",
-      dob: "15/01/2000",
-      clientIp: "ip-order-6",
+      clientIp: "ip-order-created",
     });
-    assert.equal(res6.message, GENERIC_SIGNUP_MESSAGE);
-    assert.ok(res6.userId);
+    assert.equal(created.message, GENERIC_SIGNUP_MESSAGE);
+    assert.ok(created.userId);
 
-    // 4. Already linked stud2022 returns generic message
-    const res7 = await service.signup({
-      email: "second@example.com",
-      password: "Str0ng!Pass99",
-      reg_no: "AD/2022/001",
-      dob: "2000-01-15",
-      clientIp: "ip-order-7",
-    });
-    assert.equal(res7.message, GENERIC_SIGNUP_MESSAGE);
-
-    // 5. Existing email check: ONLY after stud2022 matches, existing email returns "already registered, please sign in"
-    const res8 = await service.signup({
+    // Trying again says to sign in instead.
+    const again = await service.signup({
       email: "first@example.com",
       name: "First Student",
       password: "Str0ng!Pass99",
-      clientIp: "ip-order-8",
+      clientIp: "ip-order-again",
     });
-    assert.equal(res8.message, "already registered, please sign in");
+    assert.equal(again.message, "already registered, please sign in");
+  });
 
-    // But if stud2022 does not match, it returns the generic message even if email exists
-    const res9 = await service.signup({
-      email: "first@example.com",
+  it("offers setup only to students without an app account", async () => {
+    const { service, users } = makeService(new DevOutboxAdapter(), [
+      {
+        id: 201,
+        reg_no: "AD/2022/777",
+        dob: "2000-01-01",
+        status: "Active",
+        email: "Student.One@Example.com",
+      },
+      {
+        id: 202,
+        reg_no: "AD/2022/778",
+        dob: "2000-01-01",
+        status: "Inactive",
+        email: "inactive@example.com",
+      },
+    ]);
+
+    // Active student, no app account yet -> setup flow, nothing created.
+    const fresh = await service.signup({
+      email: "student.one@example.com",
+      name: "Student One",
       password: "Str0ng!Pass99",
-      reg_no: "WRONG/REG",
-      dob: "1999-05-20",
-      clientIp: "ip-order-9",
+      clientIp: "ip-student-1",
     });
-    assert.equal(res9.message, GENERIC_SIGNUP_MESSAGE);
+    assert.equal(fresh.needsStudentSetup, true);
+    assert.equal(fresh.email, "student.one@example.com");
+    assert.equal(fresh.userId, null);
+    assert.equal(await users.findByEmail("student.one@example.com"), null);
+
+    // Same student after finishing setup -> sign in, never setup again.
+    await users.create({
+      email: "student.one@example.com",
+      name: "Student One",
+      passwordHash: "stored-hash",
+      stud2022Id: 201,
+      role: "student",
+    });
+    const repeat = await service.signup({
+      email: "student.one@example.com",
+      name: "Student One",
+      password: "Str0ng!Pass99",
+      clientIp: "ip-student-2",
+    });
+    assert.equal(repeat.message, "already registered, please sign in");
+    assert.equal(repeat.needsStudentSetup, undefined);
+
+    // Inactive student record -> ordinary signup, not the setup flow.
+    const inactive = await service.signup({
+      email: "inactive@example.com",
+      name: "Inactive Student",
+      password: "Str0ng!Pass99",
+      clientIp: "ip-student-3",
+    });
+    assert.equal(inactive.needsStudentSetup, undefined);
+    assert.ok(inactive.userId);
   });
 
   it("enforces rate-limit per IP and per reg_no", async () => {

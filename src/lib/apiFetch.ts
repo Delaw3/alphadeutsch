@@ -13,6 +13,20 @@ export interface ApiFetchOptions extends RequestInit {
   query?: Record<string, string | number | boolean>;
 }
 
+/**
+ * Error thrown for any non-2xx response. `code` is the server's stable auth
+ * error code (`invalid-credentials`, `code-invalid`, `email-not-verified`, …)
+ * and lets screens react differently to failures that share a status code.
+ */
+export type ApiFetchError = Error & { status: number; code?: string };
+
+/** Reads the server error code from an `apiFetch` rejection, if it has one. */
+export function apiErrorCode(error: unknown): string | null {
+  if (!error || typeof error !== "object") return null;
+  const code = (error as { code?: unknown }).code;
+  return typeof code === "string" && code.length > 0 ? code : null;
+}
+
 function readToken(): string | null {
   return getToken();
 }
@@ -31,6 +45,8 @@ export async function apiFetch<T = unknown>(
     }
   }
 
+  // `query` is applied to `url` above; discard it so it is never forwarded to fetch().
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { query: _q, headers: callerHeaders, body, method, ...rest } = options;
   const headers = new Headers(callerHeaders);
 
@@ -65,7 +81,7 @@ export async function apiFetch<T = unknown>(
   } catch (err) {
     if (timeoutId) clearTimeout(timeoutId);
     if (err instanceof DOMException && err.name === 'AbortError') {
-      throw new Error('Request timed out. Please try again.');
+      throw new Error('Request timed out. Please try again.', { cause: err });
     }
     throw err;
   }
@@ -75,16 +91,19 @@ export async function apiFetch<T = unknown>(
 
   if (!response.ok) {
     let message = 'An error occurred. Please try again.';
+    let code: string | undefined;
     try {
       const data = await response.json();
       if (typeof data?.message === 'string') message = data.message;
       else if (typeof data?.error === 'string') message = data.error;
+      if (typeof data?.code === 'string' && data.code.length > 0) code = data.code;
     } catch { /* ignore */ }
     if (response.status === 401) {
       onUnauthorized?.(token);
     }
-    const err = new Error(message) as Error & { status: number };
+    const err = new Error(message) as ApiFetchError;
     err.status = response.status;
+    if (code) err.code = code;
     throw err;
   }
 
@@ -93,12 +112,18 @@ export async function apiFetch<T = unknown>(
 
 /** Store the session token returned by sign-in. */
 export function saveSessionToken(token: string): void {
-  void setToken(token).catch(() => {});
+  // Fire-and-forget (the UI proceeds immediately), but never swallow the reason:
+  // token-store rejects when the token could not be persisted.
+  void setToken(token).catch((err) => {
+    console.error('[apiFetch] session token was not persisted', err);
+  });
 }
 
 /** Remove the session token on sign-out. */
 export function clearSessionToken(): void {
-  void clearToken().catch(() => {});
+  void clearToken().catch((err) => {
+    console.error('[apiFetch] session token was not cleared from storage', err);
+  });
 }
 
 /** Whether any token is currently stored. */

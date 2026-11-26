@@ -25,6 +25,8 @@ export type AuthErrorCode =
   | "code-used"
   | "code-attempts-exceeded"
   | "code-resend-cooldown"
+  | "reset-token-invalid"
+  | "account-not-found"
   | "provider-error"
   | "store-error";
 

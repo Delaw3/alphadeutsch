@@ -36,6 +36,8 @@ type UserRow = RowDataPacket & {
   email_verified_at: Date | string | null;
   failed_logins?: number;
   locked_until?: Date | string | null;
+  reset_token_hash?: string | null;
+  reset_token_expires_at?: Date | string | null;
   stud2022_id: number | null;
   created_at: Date | string;
 };
@@ -58,11 +60,14 @@ function mapRow(row: UserRow): AppUser {
     lockedUntil: toMillis(row.locked_until ?? null),
     stud2022Id: row.stud2022_id ?? null,
     createdAt: toMillis(row.created_at) ?? Date.now(),
+    resetTokenHash: row.reset_token_hash ?? null,
+    resetTokenExpiresAt: toMillis(row.reset_token_expires_at ?? null),
   };
 }
 
 const SELECT_USER_FIELDS =
-  "id, email, name, role, password_hash, email_verified_at, failed_logins, locked_until, stud2022_id, created_at";
+  "id, email, name, role, password_hash, email_verified_at, failed_logins, locked_until, " +
+  "stud2022_id, created_at, reset_token_hash, reset_token_expires_at";
 
 function toStoreError(error: unknown): AuthError {
   if (error instanceof AuthError) return error;
@@ -167,6 +172,31 @@ export class MySqlUserStore implements UserStore {
   async resetFailedLogins(id: number): Promise<void> {
     try {
       await this.pool.query("UPDATE users SET failed_logins = 0, locked_until = NULL WHERE id = ?", [id]);
+    } catch (error) {
+      throw toStoreError(error);
+    }
+  }
+
+  async setResetTicket(id: number, tokenHash: string | null, expiresAt: number | null): Promise<void> {
+    try {
+      const expiresSec = expiresAt ? Math.floor(expiresAt / 1000) : null;
+      await this.pool.query(
+        "UPDATE users SET reset_token_hash = ?, " +
+          "reset_token_expires_at = IF(? IS NULL, NULL, FROM_UNIXTIME(?)) WHERE id = ?",
+        [tokenHash, expiresSec, expiresSec, id],
+      );
+    } catch (error) {
+      throw toStoreError(error);
+    }
+  }
+
+  async updatePassword(id: number, passwordHash: string): Promise<void> {
+    try {
+      await this.pool.query(
+        "UPDATE users SET password_hash = ?, reset_token_hash = NULL, reset_token_expires_at = NULL, " +
+          "failed_logins = 0, locked_until = NULL WHERE id = ?",
+        [passwordHash, id],
+      );
     } catch (error) {
       throw toStoreError(error);
     }

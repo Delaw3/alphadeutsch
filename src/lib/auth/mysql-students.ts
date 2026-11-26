@@ -24,6 +24,14 @@ export type Stud2022Record = {
 
 export type StudentStore = {
   findByRegNo(regNo: string): Promise<Stud2022Record | null>;
+  /**
+   * Active student record matching an e-mail address (case-insensitive).
+   *
+   * Used only to decide whether a *new* visitor should be offered the "already
+   * a student" setup flow. It is never proof of identity by itself — the setup
+   * flow still requires reg no + date of birth.
+   */
+  findByEmail(email: string): Promise<Stud2022Record | null>;
 };
 
 function toStoreError(error: unknown): AuthError {
@@ -42,6 +50,22 @@ export class MySqlStudentStore implements StudentStore {
       // Never selects 'killer' or 'reset_token'
       const [rows] = await this.pool.query(
         "SELECT id, reg_no, dob, status, email FROM stud2022 WHERE TRIM(reg_no) = ? LIMIT 1",
+        [trimmed],
+      );
+      const row = (rows as (RowDataPacket & Stud2022Record)[])[0];
+      return row ?? null;
+    } catch (error) {
+      throw toStoreError(error);
+    }
+  }
+
+  async findByEmail(email: string): Promise<Stud2022Record | null> {
+    const trimmed = email.trim().toLowerCase();
+    if (!trimmed) return null;
+    try {
+      // Same projection as findByRegNo: never selects 'killer' or 'reset_token'.
+      const [rows] = await this.pool.query(
+        "SELECT id, reg_no, dob, status, email FROM stud2022 WHERE LOWER(TRIM(email)) = ? AND LOWER(TRIM(status)) = 'active' LIMIT 1",
         [trimmed],
       );
       const row = (rows as (RowDataPacket & Stud2022Record)[])[0];
@@ -71,5 +95,19 @@ export class MemoryStudentStore implements StudentStore {
     const key = regNo.trim().toLowerCase();
     const student = this.students.get(key);
     return student ? { ...student } : null;
+  }
+
+  async findByEmail(email: string): Promise<Stud2022Record | null> {
+    const target = email.trim().toLowerCase();
+    if (!target) return null;
+    for (const student of this.students.values()) {
+      if (
+        student.email?.trim().toLowerCase() === target &&
+        student.status.trim().toLowerCase() === "active"
+      ) {
+        return { ...student };
+      }
+    }
+    return null;
   }
 }

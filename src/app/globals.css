@@ -138,3 +138,179 @@ button {
 .mobile-bottom-nav {
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
+
+/*
+ * Micro-animations for the auth screens (OTP entry, success states).
+ *
+ * Kept in plain CSS so any component can use them without extra plugins, and
+ * disabled entirely for `prefers-reduced-motion: reduce`.
+ */
+@keyframes app-rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes app-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.7);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.06);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes app-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-6px);
+  }
+  40% {
+    transform: translateX(6px);
+  }
+  60% {
+    transform: translateX(-4px);
+  }
+  80% {
+    transform: translateX(4px);
+  }
+}
+
+@keyframes app-cell-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-rise {
+  animation: app-rise 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.animate-pop {
+  animation: app-pop 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.animate-shake {
+  animation: app-shake 0.36s ease-in-out both;
+}
+
+.animate-cell {
+  animation: app-cell-in 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Soft gold badge behind the icon on the verification screens. */
+.otp-badge {
+  display: grid;
+  place-items: center;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 1rem;
+  background: color-mix(in srgb, var(--app-accent) 25%, transparent);
+  color: var(--app-text);
+}
+
+/*
+ * One-time-code row.
+ *
+ * Plain CSS on purpose: the six boxes must stay inline and inside the card at
+ * every width, so their layout cannot depend on utilities generated from the
+ * page source. Cells are fluid between 0 and 46px and stay centred, which keeps
+ * 42–46px boxes on 360–390px screens and ~36px on a 320px screen (no clipping,
+ * no horizontal scroll).
+ */
+.otp-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(4px, 1.5vw, 7px);
+  width: 100%;
+}
+
+.otp-cell {
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 46px;
+  height: 50px;
+  padding: 0;
+  border: 1px solid var(--app-border);
+  border-radius: 12px;
+  background: var(--app-surface-2);
+  color: var(--app-text);
+  font-family: inherit;
+  font-size: 17px;
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  caret-color: var(--app-accent);
+  -webkit-appearance: none;
+  appearance: none;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    background-color 160ms ease;
+}
+
+/* Focus: accent border plus a light ring (no oversized glow). */
+.otp-cell:focus,
+.otp-cell:focus-visible {
+  outline: none;
+  border-color: var(--app-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--app-accent) 30%, transparent);
+}
+
+/* A filled digit hints at the accent without shouting. */
+.otp-cell[data-filled="true"] {
+  border-color: color-mix(in srgb, var(--app-accent) 55%, var(--app-border));
+}
+
+/* Invalid submission: clear error state that keeps the row aligned. */
+.otp-cell[aria-invalid="true"] {
+  border-color: #f87171;
+  background: color-mix(in srgb, #ef4444 7%, var(--app-surface-2));
+  color: #b91c1c;
+  box-shadow: none;
+}
+
+.dark .otp-cell[aria-invalid="true"] {
+  border-color: #7f1d1d;
+  color: #fca5a5;
+}
+
+.otp-cell:disabled {
+  opacity: 0.6;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .otp-cell {
+    transition: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-rise,
+  .animate-pop,
+  .animate-shake,
+  .animate-cell {
+    animation: none !important;
+  }
+}

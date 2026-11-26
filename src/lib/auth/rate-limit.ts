@@ -60,4 +60,5 @@ export const RATE_LIMITS = {
   signin: { limit: 8, windowMs: 10 * 60_000 },
   verify: { limit: 10, windowMs: 10 * 60_000 },
   resend: { limit: 3, windowMs: 10 * 60_000 },
+  forgot: { limit: 3, windowMs: 10 * 60_000 },
 } as const;
