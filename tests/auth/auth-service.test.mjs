@@ -4,12 +4,61 @@ import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
 require("../auth/preload.cjs");
-const { DevOutboxAdapter, assertDevDeliveryAllowed } = require("../build/auth/dev-mailer.js");
+const {
+  DevOutboxAdapter,
+  FailingMailAdapter,
+  assertDevDeliveryAllowed,
+} = require("../build/auth/dev-mailer.js");
 const { AuthService, MemoryUserStore } = require("../build/auth/auth-service.js");
 const { MemoryStudentStore } = require("../build/auth/mysql-students.js");
 const { MemorySessionStore } = require("../build/auth/sessions.js");
 const { MemoryChallengeStore } = require("../build/auth/verification.js");
 const { AuthError, GENERIC_SIGNUP_MESSAGE } = require("../build/auth/auth-errors.js");
+
+class FailingMarkUserStore extends MemoryUserStore {
+  constructor() {
+    super();
+    this.failMark = false;
+  }
+
+  async markEmailVerified(id, at) {
+    if (this.failMark) {
+      throw new AuthError("store-error", 500, "Account service is unavailable.");
+    }
+    return super.markEmailVerified(id, at);
+  }
+}
+
+class FailOnceChallengeStore extends MemoryChallengeStore {
+  constructor() {
+    super();
+    this.failNextIssue = true;
+  }
+
+  async issue(input) {
+    if (this.failNextIssue) {
+      this.failNextIssue = false;
+      throw new AuthError("store-error", 500, "Account service is unavailable.");
+    }
+    return super.issue(input);
+  }
+}
+
+class PausingMarkUserStore extends MemoryUserStore {
+  constructor() {
+    super();
+    this.markStarted = null;
+    this.releaseMark = null;
+  }
+
+  async markEmailVerified(id, at) {
+    this.markStarted?.();
+    await new Promise((resolve) => {
+      this.releaseMark = resolve;
+    });
+    return super.markEmailVerified(id, at);
+  }
+}
 
 function makeService(mailer, studentsList, options = {}) {
   const users = new MemoryUserStore();
@@ -284,7 +333,7 @@ describe("signup + verify + signin", () => {
     });
     const row = await challenges.latestForUser(1, "signup");
     row.expiresAt = Date.now() - 1000;
-    await challenges.save(row);
+    await challenges.saveForTest(row);
     await assert.rejects(
       service.verifyEmail({ email: "exp@example.com", code: "000000" }),
       (e) => e instanceof AuthError && e.code === "code-expired",
@@ -355,5 +404,233 @@ describe("signup + verify + signin", () => {
     } finally {
       process.env.NODE_ENV = prev;
     }
+  });
+});
+
+describe("atomic verification and signup recovery", () => {
+  it("rolls back the challenge when markEmailVerified fails", async () => {
+    const failingUsers = new FailingMarkUserStore();
+    const mailer = new DevOutboxAdapter();
+    const { service } = makeService(mailer);
+    service.deps.users = failingUsers;
+
+    await service.signup({
+      email: "atomic@example.com",
+      name: "Atomic Student",
+      password: "Str0ng!Pass99",
+    });
+    const user = await failingUsers.findByEmail("atomic@example.com");
+    assert.ok(user);
+    const code = mailer.latestFor("atomic@example.com").code;
+
+    failingUsers.failMark = true;
+    await assert.rejects(
+      service.verifyEmail({ email: "atomic@example.com", code }),
+      (error) => error instanceof AuthError && error.code === "store-error",
+    );
+
+    const challenge = await service.deps.challenges.latestForUser(user.id, "signup");
+    assert.equal(challenge.usedAt, null);
+    assert.equal((await failingUsers.findByEmail("atomic@example.com")).emailVerifiedAt, null);
+
+    failingUsers.failMark = false;
+    await service.verifyEmail({ email: "atomic@example.com", code });
+    assert.ok((await failingUsers.findByEmail("atomic@example.com")).emailVerifiedAt);
+
+    await assert.rejects(
+      service.verifyEmail({ email: "atomic@example.com", code }),
+      (error) => error instanceof AuthError && error.code === "code-used",
+    );
+  });
+
+  it("allows resend recovery after challenge creation fails", async () => {
+    const store = new FailOnceChallengeStore();
+    const { service } = makeService(new DevOutboxAdapter());
+    service.deps.challenges = store;
+
+    await assert.rejects(
+      service.signup({
+        email: "challenge-fail@example.com",
+        name: "Challenge Failure",
+        password: "Str0ng!Pass99",
+      }),
+      (error) => error instanceof AuthError && error.code === "store-error",
+    );
+    const user = await service.deps.users.findByEmail("challenge-fail@example.com");
+    assert.ok(user);
+    assert.equal(user.emailVerifiedAt, null);
+
+    const recoveryMailer = new DevOutboxAdapter();
+    service.deps.mailer = recoveryMailer;
+    const result = await service.resendCode({ email: "challenge-fail@example.com" });
+
+    assert.equal(result.message, GENERIC_SIGNUP_MESSAGE);
+    assert.ok(recoveryMailer.latestFor("challenge-fail@example.com"));
+    assert.equal((await service.deps.users.findByEmail("challenge-fail@example.com")).id, user.id);
+  });
+
+  it("allows resend recovery after signup mail delivery fails", async () => {
+    const { service } = makeService(new FailingMailAdapter());
+    await assert.rejects(
+      service.signup({
+        email: "recover@example.com",
+        name: "Recovery Student",
+        password: "Str0ng!Pass99",
+      }),
+      (error) => error instanceof AuthError && error.code === "provider-error",
+    );
+
+    const user = await service.deps.users.findByEmail("recover@example.com");
+    assert.ok(user);
+    assert.equal(user.emailVerifiedAt, null);
+
+    const challenge = await service.deps.challenges.latestForUser(user.id, "signup");
+    await service.deps.challenges.saveForTest({
+      ...challenge,
+      lastSentAt: Date.now() - 61_000,
+    });
+
+    const recoveryMailer = new DevOutboxAdapter();
+    service.deps.mailer = recoveryMailer;
+    const result = await service.resendCode({ email: "recover@example.com" });
+
+    assert.equal(result.message, GENERIC_SIGNUP_MESSAGE);
+    assert.ok(recoveryMailer.latestFor("recover@example.com"));
+    assert.equal((await service.deps.users.findByEmail("recover@example.com")).id, user.id);
+    assert.equal((await service.deps.users.findByEmail("recover@example.com")).emailVerifiedAt, null);
+  });
+
+  it("allows an existing unverified user to resend without creating another account", async () => {
+    const mailer = new DevOutboxAdapter();
+    const { service } = makeService(mailer);
+    await service.signup({
+      email: "unverified@example.com",
+      name: "Unverified Student",
+      password: "Str0ng!Pass99",
+    });
+    const user = await service.deps.users.findByEmail("unverified@example.com");
+    const challenge = await service.deps.challenges.latestForUser(user.id, "signup");
+    await service.deps.challenges.saveForTest({
+      ...challenge,
+      lastSentAt: Date.now() - 61_000,
+    });
+
+    const result = await service.resendCode({ email: "unverified@example.com" });
+
+    assert.equal(result.message, GENERIC_SIGNUP_MESSAGE);
+    assert.equal(mailer.outbox.filter((entry) => entry.to === "unverified@example.com").length, 2);
+    assert.equal((await service.deps.users.findByEmail("unverified@example.com")).id, user.id);
+  });
+
+  it("does not issue a signup code to an already verified user", async () => {
+    const mailer = new DevOutboxAdapter();
+    const { service } = makeService(mailer);
+    await service.signup({
+      email: "verified@example.com",
+      name: "Verified Student",
+      password: "Str0ng!Pass99",
+    });
+    const delivered = mailer.latestFor("verified@example.com");
+    await service.verifyEmail({ email: "verified@example.com", code: delivered.code });
+    const deliveredBeforeResend = mailer.outbox.length;
+
+    const result = await service.resendCode({ email: "verified@example.com" });
+
+    assert.equal(result.message, GENERIC_SIGNUP_MESSAGE);
+    assert.equal(mailer.outbox.length, deliveredBeforeResend);
+    assert.ok((await service.deps.users.findByEmail("verified@example.com")).emailVerifiedAt);
+  });
+
+  it("keeps signup retry safe after a partial failure", async () => {
+    const { service } = makeService(new FailingMailAdapter());
+    await assert.rejects(
+      service.signup({
+        email: "retry@example.com",
+        name: "Retry Student",
+        password: "Str0ng!Pass99",
+      }),
+      (error) => error instanceof AuthError && error.code === "provider-error",
+    );
+    const firstUser = await service.deps.users.findByEmail("retry@example.com");
+    assert.ok(firstUser);
+
+    const retry = await service.signup({
+      email: "retry@example.com",
+      name: "Retry Student",
+      password: "Str0ng!Pass99",
+    });
+
+    assert.equal(retry.message, "already registered, please sign in");
+    const secondUser = await service.deps.users.findByEmail("retry@example.com");
+    assert.equal(secondUser.id, firstUser.id);
+    assert.equal(secondUser.emailVerifiedAt, null);
+  });
+});
+
+describe("concurrent verification and malformed attempts", () => {
+  it("does not issue a resend challenge after concurrent verification completes", async () => {
+    const pausingUsers = new PausingMarkUserStore();
+    let started;
+    const verificationStarted = new Promise((resolve) => {
+      started = resolve;
+    });
+    pausingUsers.markStarted = started;
+
+    const mailer = new DevOutboxAdapter();
+    const { service } = makeService(mailer);
+    service.deps.users = pausingUsers;
+
+    await service.signup({
+      email: "race@example.com",
+      name: "Race Student",
+      password: "Str0ng!Pass99",
+    });
+    const code = mailer.latestFor("race@example.com").code;
+    const sentBeforeRace = mailer.outbox.length;
+
+    const verification = service.verifyEmail({ email: "race@example.com", code });
+    await verificationStarted;
+    const resend = service.resendCode({ email: "race@example.com", clientIp: "race-ip" });
+    await new Promise((resolve) => setImmediate(resolve));
+    pausingUsers.releaseMark();
+
+    const [verified, resent] = await Promise.all([verification, resend]);
+
+    assert.equal(verified.userId, 1);
+    assert.equal(resent.message, GENERIC_SIGNUP_MESSAGE);
+    assert.equal(mailer.outbox.length, sentBeforeRace);
+    assert.ok((await pausingUsers.findByEmail("race@example.com")).emailVerifiedAt);
+  });
+
+  it("counts malformed submissions toward the five-attempt limit", async () => {
+    const mailer = new DevOutboxAdapter();
+    const { service } = makeService(mailer);
+    await service.signup({
+      email: "malformed@example.com",
+      name: "Malformed Student",
+      password: "Str0ng!Pass99",
+    });
+    const user = await service.deps.users.findByEmail("malformed@example.com");
+
+    for (let attempt = 0; attempt < 4; attempt += 1) {
+      await assert.rejects(
+        service.verifyEmail({ email: "malformed@example.com", code: "abc" }),
+        (error) => error instanceof AuthError && error.code === "code-invalid",
+      );
+    }
+    await assert.rejects(
+      service.verifyEmail({ email: "malformed@example.com", code: "abcd" }),
+      (error) => error instanceof AuthError && error.code === "code-attempts-exceeded",
+    );
+
+    const challenge = await service.deps.challenges.latestForUser(user.id, "signup");
+    assert.equal(challenge.attempts, 5);
+    await assert.rejects(
+      service.verifyEmail({
+        email: "malformed@example.com",
+        code: mailer.latestFor("malformed@example.com").code,
+      }),
+      (error) => error instanceof AuthError && error.code === "code-attempts-exceeded",
+    );
   });
 });

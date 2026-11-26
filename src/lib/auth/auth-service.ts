@@ -3,7 +3,6 @@ import "server-only";
 import {
   GENERIC_SIGNUP_MESSAGE,
   invalidCredentials,
-  normalizeDob,
   normalizeEmail,
   validateDisplayName,
   validateNewPassword,
@@ -11,6 +10,7 @@ import {
 } from "./auth-errors";
 import type { MailAdapter } from "./dev-mailer";
 import type { StudentStore } from "./mysql-students";
+import { readCodePepper } from "./otp";
 import { dummyPasswordCompare, hashPassword, verifyPassword } from "./passwords";
 import { MemoryRateLimiter, RATE_LIMITS } from "./rate-limit";
 import { createSession, revokeSession, type SessionStore } from "./sessions";
@@ -210,6 +210,10 @@ export class AuthService {
       return { message: "already registered, please sign in", userId: null };
     }
 
+    // Fail closed on OTP configuration before creating an account. This avoids
+    // leaving an unverified account behind when the pepper is missing.
+    readCodePepper();
+
     // 4. Create the account as a plain 'user' (no student link yet).
     const passwordHash = await hashPassword(input.password as string, this.deps.passwordCost);
     let user: AppUser;
@@ -227,7 +231,13 @@ export class AuthService {
     }
 
     try {
-      const issued = await issueChallenge(this.deps.challenges, { userId: user.id, purpose: "signup" });
+      const issued = await issueChallenge(this.deps.challenges, {
+        userId: user.id,
+        purpose: "signup",
+      });
+      if (issued.status === "already-verified") {
+        return { message: GENERIC_SIGNUP_MESSAGE, userId: user.id };
+      }
       await this.deps.mailer.sendVerificationCode({
         to: user.email,
         purpose: "signup",
@@ -251,8 +261,11 @@ export class AuthService {
     }
     const user = await this.deps.users.findByEmail(email);
     if (!user) throw new AuthError("code-invalid", 400, "Invalid or expired verification code.");
-    await consumeChallenge(this.deps.challenges, { userId: user.id, purpose: "signup", code: input.code });
-    await this.deps.users.markEmailVerified(user.id, Date.now());
+    await consumeChallenge(
+      this.deps.challenges,
+      { userId: user.id, purpose: "signup", code: input.code },
+      () => this.deps.users.markEmailVerified(user.id, Date.now()),
+    );
     return { userId: user.id };
   }
 
@@ -263,7 +276,17 @@ export class AuthService {
     if (!email) return { message: GENERIC_SIGNUP_MESSAGE };
     const user = await this.deps.users.findByEmail(email);
     if (!user || user.emailVerifiedAt) return { message: GENERIC_SIGNUP_MESSAGE };
-    const issued = await issueChallenge(this.deps.challenges, { userId: user.id, purpose: "signup" });
+    const issued = await issueChallenge(this.deps.challenges, {
+      userId: user.id,
+      purpose: "signup",
+      isUserVerified: async () => {
+        const current = await this.deps.users.findById(user.id);
+        return Boolean(current?.emailVerifiedAt);
+      },
+    });
+    if (issued.status === "already-verified") {
+      return { message: GENERIC_SIGNUP_MESSAGE };
+    }
     await this.deps.mailer.sendVerificationCode({
       to: user.email,
       purpose: "signup",

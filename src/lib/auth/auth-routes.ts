@@ -8,6 +8,7 @@ import { createLazyMailer } from "@/lib/auth/email-provider";
 import { AuthService, MemoryUserStore, type UserStore } from "@/lib/auth/auth-service";
 import { MemorySessionStore, type SessionStore } from "@/lib/auth/sessions";
 import { MemoryChallengeStore, type ChallengeStore } from "@/lib/auth/verification";
+import { MySqlChallengeStore } from "@/lib/auth/mysql-challenges";
 import { MySqlUserStore } from "@/lib/auth/mysql-users";
 import { MySqlSessionStore } from "@/lib/auth/mysql-sessions";
 import { MySqlStudentStore, MemoryStudentStore, type StudentStore } from "@/lib/auth/mysql-students";
@@ -31,11 +32,11 @@ export function createAuthStores(env: NodeJS.ProcessEnv = process.env): AuthStor
   // Lazy: a broken SMTP configuration must not prevent sign-in/sign-out or any
   // other auth route from loading. Sending still fails with a provider error.
   const mailer = createLazyMailer(env);
-  const challenges = new MemoryChallengeStore();
 
   if (kind === "memory") {
     const users = new MemoryUserStore();
     const sessions = new MemorySessionStore();
+    const challenges = new MemoryChallengeStore();
     const students = new MemoryStudentStore();
     return { users, sessions, challenges, students, mailer, kind };
   }
@@ -45,6 +46,7 @@ export function createAuthStores(env: NodeJS.ProcessEnv = process.env): AuthStor
   const pool = getPool();
   const users = new MySqlUserStore(pool);
   const sessions = new MySqlSessionStore(pool);
+  const challenges = new MySqlChallengeStore(pool);
   const students = new MySqlStudentStore(pool);
 
   return { users, sessions, challenges, students, mailer, kind };
