@@ -120,10 +120,50 @@ button {
   box-shadow: 0 0 0 4px rgba(255, 206, 69, 0.45);
 }
 
+/*
+ * App shell.
+ *
+ * Safe-area insets are deliberately NOT applied here. This class is used by the
+ * root layout and nested again inside the (app)/(auth) layouts, so padding here
+ * was applied twice on the same screen. Inside the Capacitor app
+ * `env(safe-area-inset-*)` is a real, non-zero value (Capacitor runs the WebView
+ * edge-to-edge and passes the system-bar insets through to CSS), so it stacked
+ * with the padding the sticky header already applies: the dashboard header
+ * started ~3 status bars down instead of 1, which pushed the content down, made
+ * the layout look cramped, and let the header drift upward for the first ~76px
+ * of scrolling before `position: sticky` finally pinned it.
+ *
+ * Insets are owned by the edge components that actually touch the screen edge:
+ * `AppTopBar` (top / status bar) and the fixed bottom navigation (bottom /
+ * gesture bar). A browser has zero insets, so this changes nothing on the
+ * website or PWA.
+ */
 .mobile-app-shell {
   min-height: 100dvh;
-  padding-top: env(safe-area-inset-top, 0px);
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+  /* The app shell is a fixed-width mobile surface: nothing may scroll sideways.
+     `clip` (rather than `hidden`) does not create a scroll container, so the
+     sticky dashboard header keeps working. */
+  overflow-x: clip;
+}
+
+/*
+ * Sticky app header (menu, greeting, search, theme, notifications).
+ *
+ * Web / any browser: unchanged — the original 2rem rhythm.
+ *
+ * Native Android: the WebView runs edge-to-edge on Android 15+, so the real
+ * status-bar height arrives as `env(safe-area-inset-top)`. Add it once, plus the
+ * same 0.75rem the header uses at the bottom (`pb-3`), so the greeting sits
+ * comfortably below the clock/battery icons with balanced top/bottom spacing and
+ * nothing is hidden under the bar. Applied once — the shell itself has no
+ * safe-area padding.
+ */
+.app-topbar {
+  padding-top: 2rem;
+}
+
+html.is-native-android .app-topbar {
+  padding-top: calc(env(safe-area-inset-top, 0px) + 0.75rem);
 }
 
 .mobile-app-main {
@@ -133,10 +173,6 @@ button {
 .mobile-safe-area {
   padding-left: max(env(safe-area-inset-left, 0px), 0px);
   padding-right: max(env(safe-area-inset-right, 0px), 0px);
-}
-
-.mobile-bottom-nav {
-  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 /*
@@ -215,6 +251,30 @@ button {
 
 .animate-cell {
   animation: app-cell-in 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/*
+ * Result slip printing.
+ *
+ * The certificate is also downloadable as a locally generated PDF; this ruleset
+ * keeps the browser's "Print" output clean for anyone who prefers paper.
+ */
+@media print {
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .certificate {
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    break-inside: avoid;
+  }
 }
 
 /* Soft gold badge behind the icon on the verification screens. */
@@ -312,29 +372,5 @@ button {
   .animate-shake,
   .animate-cell {
     animation: none !important;
-  }
-}
-
-/*
- * Result slip printing.
- *
- * The certificate is also downloadable as a locally generated PDF; this ruleset
- * keeps the browser's "Print" output clean for anyone who prefers paper.
- */
-@media print {
-  @page {
-    size: A4;
-    margin: 12mm;
-  }
-
-  .no-print {
-    display: none !important;
-  }
-
-  .certificate {
-    border: 0 !important;
-    border-radius: 0 !important;
-    box-shadow: none !important;
-    break-inside: avoid;
   }
 }

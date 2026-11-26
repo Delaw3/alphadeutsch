@@ -165,7 +165,7 @@ export default function LearningPage() {
 
   if (status === "loading") {
     return (
-      <MobileScreen eyebrow="My Learning" title="Loading…">
+      <MobileScreen title="Loading…">
         <div role="status" aria-label="Loading your profile" className="flex justify-center py-10">
           <MiniSpinner className="size-8" />
         </div>
@@ -175,7 +175,7 @@ export default function LearningPage() {
 
   if (status === "unauthenticated") {
     return (
-      <MobileScreen eyebrow="My Learning" title="Sign in required">
+      <MobileScreen title="Sign in required">
         <MobileStateCard
           icon={<Lock size={24} strokeWidth={2} />}
           title="You are not signed in"
@@ -190,7 +190,7 @@ export default function LearningPage() {
 
   if (status === "error") {
     return (
-      <MobileScreen eyebrow="My Learning" title="Something went wrong">
+      <MobileScreen title="Something went wrong">
         <MobileStateCard
           icon={<AlertTriangle size={24} strokeWidth={2} />}
           title="Could not load your data"
@@ -213,11 +213,7 @@ export default function LearningPage() {
   }
 
   return (
-    <MobileScreen
-      eyebrow="My Learning"
-      title={`Hallo ${firstName}`}
-      description="Watch video tutorials from your instructors."
-    >
+    <MobileScreen description="Watch video tutorials from your instructors.">
       {unpaidCount > 0 ? (
         <div className="rounded-2xl border border-yellow-300 bg-yellow-50 px-4 py-3 text-[13px] font-bold text-yellow-800 dark:border-yellow-600 dark:bg-yellow-900/20 dark:text-yellow-300">
           You have {unpaidCount} unpaid course{unpaidCount > 1 ? "s" : ""}.{" "}

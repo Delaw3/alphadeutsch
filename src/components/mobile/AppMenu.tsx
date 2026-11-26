@@ -65,6 +65,8 @@ function ThemeSetting() {
     setTheme(next);
   }
 
+  // Icon-only control: `label` is kept for screen readers and the tooltip;
+  // only the icon is drawn.
   const options = [
     { value: "light" as const, label: "Light", Icon: Sun },
     { value: "dark" as const, label: "Dark", Icon: Moon },
@@ -81,14 +83,15 @@ function ThemeSetting() {
             <button
               key={option.value}
               type="button"
+              aria-label={option.label}
+              title={option.label}
               aria-pressed={active}
               onClick={() => applyTheme(option.value)}
-              className={`focus-ring inline-flex min-h-[40px] items-center justify-center gap-1.5 rounded-xl px-3 text-[13px] font-black transition-colors ${
+              className={`focus-ring inline-flex min-h-[40px] items-center justify-center rounded-xl px-3 transition-colors ${
                 active ? "bg-app-accent text-app-on-accent shadow-sm" : "text-app-muted hover:text-app-text"
               }`}
             >
-              <Icon size={16} strokeWidth={2} />
-              <span>{option.label}</span>
+              <Icon size={18} strokeWidth={2} />
             </button>
           );
         })}

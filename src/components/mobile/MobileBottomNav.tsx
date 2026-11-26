@@ -4,6 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 
+import { normalizePathname } from "@/lib/routes";
+
 function TabIcon({ kind, active }: { kind: "home" | "courses" | "learning" | "profile"; active: boolean }) {
   const cls = `size-6 fill-none stroke-current stroke-[1.8] ${active ? "" : "opacity-80"}`;
   if (kind === "home") {
@@ -49,6 +51,10 @@ const tabs = [
 
 export function MobileBottomNav() {
   const pathname = usePathname() ?? "/";
+  // The mobile export (`trailingSlash: true`) reports "/home/", which never
+  // matched the exact `/home` tab — so Home could never show its active yellow
+  // pill inside the app. Compare the normalised path; a no-op on the web.
+  const routePath = normalizePathname(pathname);
   return (
     <nav
       aria-label="Alpha Deutsch app sections"
@@ -56,7 +62,9 @@ export function MobileBottomNav() {
     >
       <div className="mx-auto grid max-w-lg grid-cols-4 gap-1">
         {tabs.map((tab) => {
-          const active = tab.exact ? pathname === tab.href : pathname.startsWith(tab.href);
+          const active = tab.exact
+            ? routePath === tab.href
+            : routePath === tab.href || routePath.startsWith(`${tab.href}/`);
           return (
             <Link
               key={tab.href}

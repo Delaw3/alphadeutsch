@@ -2,6 +2,8 @@
 
 import { useEffect } from "react";
 
+import { hasExplicitThemeChoice, prefersDarkTheme, syncStatusBarTheme } from "@/lib/status-bar-theme";
+
 /**
  * Native-only shell behaviour (status bar, splash screen, Android back button).
  *
@@ -19,16 +21,31 @@ export function NativeBridge() {
         const { Capacitor } = await import("@capacitor/core");
         if (!Capacitor.isNativePlatform()) return;
 
-        const [{ StatusBar, Style }, { SplashScreen }, { App }] = await Promise.all([
-          import("@capacitor/status-bar"),
+        // Fallback for the pre-paint script in app/layout.tsx (in case Capacitor
+        // was not injected yet when it ran). Drives the Android header spacing.
+        document.documentElement.classList.add("is-native");
+        if (Capacitor.getPlatform() === "android") {
+          document.documentElement.classList.add("is-native-android");
+        }
+
+        const [{ SplashScreen }, { App }] = await Promise.all([
           import("@capacitor/splash-screen"),
           import("@capacitor/app"),
         ]);
         if (removed) return;
 
-        // Match the app's light theme; failures are non-fatal.
-        StatusBar.setStyle({ style: Style.Dark }).catch(() => {});
-        StatusBar.setBackgroundColor({ color: "#FFC93C" }).catch(() => {});
+        // Status bar follows the current theme: dark icons on the light UI,
+        // light icons on the dark UI. Failures are non-fatal.
+        void syncStatusBarTheme(prefersDarkTheme());
+
+        // Follow the OS appearance while the user has not chosen a theme.
+        const scheme = window.matchMedia("(prefers-color-scheme: dark)");
+        const onSchemeChange = () => {
+          if (hasExplicitThemeChoice()) return;
+          void syncStatusBarTheme(scheme.matches);
+        };
+        scheme.addEventListener("change", onSchemeChange);
+        cleanups.push(() => scheme.removeEventListener("change", onSchemeChange));
 
         SplashScreen.hide().catch(() => {});
 

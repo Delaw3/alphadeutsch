@@ -8,6 +8,7 @@ import { apiFetch, hasSessionToken } from "@/lib/apiFetch";
 import { greetingForNow } from "@/lib/greetings";
 import { givenName } from "@/lib/names";
 import { formatNaira, type MobileCourseRow } from "@/lib/mobile-api";
+import { syncStatusBarTheme } from "@/lib/status-bar-theme";
 import { AppMenu } from "./AppMenu";
 
 type Me = { name: string | null };
@@ -71,6 +72,8 @@ export function AppTopBar() {
     setDark(next);
     try { localStorage.setItem("alphadeutsch-theme", next ? "dark" : "light"); } catch { /* ignore */ }
     document.documentElement.classList.toggle("dark", next);
+    // Keep the Android status bar readable in the new theme (native only).
+    void syncStatusBarTheme(next);
   }
 
   useEffect(() => {
@@ -121,7 +124,7 @@ export function AppTopBar() {
   const greeting = greetingForNow();
 
   return (
-    <header className="sticky top-0 z-40 bg-app-bg pt-[max(env(safe-area-inset-top),2rem)] pb-3">
+    <header className="app-topbar sticky top-0 z-40 bg-app-bg pb-3">
       <div className="mx-auto w-full max-w-lg px-4">
         {searchOpen ? (
           <div className="flex items-center gap-2">

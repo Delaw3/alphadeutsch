@@ -32,7 +32,10 @@ const config: CapacitorConfig = {
       showSpinner: false,
     },
     StatusBar: {
-      style: "DARK",
+      // "LIGHT" = dark icons for the light UI. This is the state before the
+      // WebView runs; the runtime sync (src/lib/status-bar-theme.ts) switches it
+      // to "DARK" (light icons) whenever the dark theme is active.
+      style: "LIGHT",
       backgroundColor: "#FFC93C",
       overlaysWebView: false,
     },

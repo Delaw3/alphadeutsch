@@ -63,6 +63,14 @@ export default function RootLayout({
       </head>
       <body suppressHydrationWarning>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+        {/* Marks the document as a native app before first paint, so the Android
+            header spacing (see `.app-topbar` in globals.css) applies without a
+            flash. No effect in a browser. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var C=window.Capacitor;if(!C||!C.isNativePlatform||!C.isNativePlatform())return;var r=document.documentElement;r.classList.add("is-native");if(C.getPlatform&&C.getPlatform()==="android"){r.classList.add("is-native-android");}}catch(e){}})();`,
+          }}
+        />
         <script
           dangerouslySetInnerHTML={{
             __html: `(function(){if(!('serviceWorker' in navigator))return;var enableSw=${JSON.stringify(
