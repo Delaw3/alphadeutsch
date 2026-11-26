@@ -3,12 +3,16 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { apiFetch, hasSessionToken } from "@/lib/apiFetch";
-import { CreditCard, Search, Printer } from "lucide-react";
+import { CreditCard, Search } from "lucide-react";
 import { siteLinks } from "@/lib/constants";
 
 import { MobileCard, MobileScreen } from "@/components/mobile/MobileScreen";
 import { MiniSpinner } from "@/components/mobile/MobileLoaders";
 import { MobileStateCard, MobileRetryButton } from "@/components/mobile/MobileStates";
+import {
+  ResultCertificate,
+  type CertificateStudent,
+} from "@/components/mobile/ResultCertificate";
 
 /* ── Types ── */
 type Me = { name: string | null; reg_no?: string | null };
@@ -34,6 +38,7 @@ type ResultData = {
   sprechen_grade: string | null;
   total_score: number | null;
   overall_grade: string | null;
+  student?: CertificateStudent | null;
 };
 
 type FetchReason = "not-found" | "unpaid" | "not-registered" | "no-student" | null;
@@ -47,15 +52,6 @@ const SITTINGS = [
 ] as const;
 
 const LEVELS = ["A1", "A2", "B1", "B2", "C1", "Family Reunion"] as const;
-
-function gradeColor(grade: string | null) {
-  if (!grade) return "text-app-muted";
-  const g = grade.toUpperCase();
-  if (g === "A" || g === "PASS" || g === "DISTINKT") return "text-green-600 dark:text-green-400";
-  if (g === "B" || g === "SATISFACTORY") return "text-blue-600 dark:text-blue-400";
-  if (g === "FAIL" || g === "F") return "text-red-600 dark:text-red-400";
-  return "text-app-text";
-}
 
 export default function ResultPage() {
   /* Auth guard */
@@ -157,7 +153,7 @@ export default function ResultPage() {
 
   if (!authed) {
     return (
-      <MobileScreen eyebrow="Results" title="Sign in required">
+      <MobileScreen title="Sign in required">
         <MobileStateCard
           icon="🔒"
           title="You are not signed in"
@@ -174,7 +170,6 @@ export default function ResultPage() {
 
   return (
     <MobileScreen
-      eyebrow="Results"
       title="Check your result"
       description="Select a course and sitting to view your exam scores."
     >
@@ -338,72 +333,14 @@ export default function ResultPage() {
         />
       ) : null}
 
-      {/* Result view */}
+      {/* Result slip with passport photo, PDF download and PDF sharing */}
       {resultStatus === "done" && result ? (
-        <MobileCard>
-          <div className="flex items-start justify-between gap-2">
-            <div>
-              <p className="text-[11px] font-black uppercase tracking-[0.18em] text-app-muted">
-                {result.course_title}
-              </p>
-              <h2 className="mt-1 text-lg font-black text-app-text">
-                {SITTINGS.find((s) => s.value === result.sitting)?.label ?? `Sitting ${result.sitting}`}
-              </h2>
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                if (navigator.share) {
-                  navigator.share({ title: "Alpha Deutsch Result", text: `My result: ${result.overall_grade}` });
-                } else {
-                  window.print();
-                }
-              }}
-              className="focus-ring inline-flex min-h-[44px] items-center gap-1 rounded-full border border-app-border bg-app-surface-2 px-4 text-[13px] font-black text-app-text"
-            >
-              <Printer size={16} strokeWidth={2} /> Share
-            </button>
-          </div>
-
-          <div className="mt-4 grid gap-2">
-            {(
-              [
-                { label: "Hören", score: result.horen_score, grade: result.horen_grade },
-                { label: "Lesen", score: result.lesen_score, grade: result.lesen_grade },
-                { label: "Schreiben", score: result.schreiben_score, grade: result.schreiben_grade },
-                { label: "Sprechen", score: result.sprechen_score, grade: result.sprechen_grade },
-              ] as const
-            ).map((row) => (
-              <div
-                key={row.label}
-                className="flex items-center justify-between rounded-2xl bg-app-surface-2 px-4 py-3"
-              >
-                <span className="text-[13px] font-bold text-app-text">{row.label}</span>
-                <span className="flex items-center gap-3">
-                  <span className="text-[13px] tabular-nums text-app-muted">
-                    {row.score != null ? row.score : "—"}
-                  </span>
-                  <span className={`text-[13px] font-black ${gradeColor(row.grade)}`}>
-                    {row.grade ?? "—"}
-                  </span>
-                </span>
-              </div>
-            ))}
-
-            {/* Total */}
-            <div className="flex items-center justify-between rounded-2xl border border-app-border bg-app-surface px-4 py-3">
-              <span className="font-black text-app-text">Total / Overall</span>
-              <span className="flex items-center gap-3">
-                <span className="tabular-nums text-app-muted">
-                  {result.total_score != null ? result.total_score : "—"}
-                </span>
-                <span className={`text-base font-black ${gradeColor(result.overall_grade)}`}>
-                  {result.overall_grade ?? "—"}
-                </span>
-              </span>
-            </div>
-          </div>
-        </MobileCard>
+        <ResultCertificate
+          result={result}
+          sittingLabel={
+            SITTINGS.find((s) => s.value === result.sitting)?.label ?? `Sitting ${result.sitting}`
+          }
+        />
       ) : null}
     </MobileScreen>
   );

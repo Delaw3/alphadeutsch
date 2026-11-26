@@ -314,3 +314,27 @@ button {
     animation: none !important;
   }
 }
+
+/*
+ * Result slip printing.
+ *
+ * The certificate is also downloadable as a locally generated PDF; this ruleset
+ * keeps the browser's "Print" output clean for anyone who prefers paper.
+ */
+@media print {
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .certificate {
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    break-inside: avoid;
+  }
+}

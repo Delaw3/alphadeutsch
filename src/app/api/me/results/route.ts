@@ -7,6 +7,7 @@ import { authErrorResponse, authStores } from "@/lib/auth/auth-routes";
 import { readSessionCookie, validateSessionToken } from "@/lib/auth/sessions";
 import { getPool } from "@/lib/db";
 import { withApiTiming } from "@/lib/monitoring/perf";
+import { resolveResultTotal } from "@/lib/results";
 
 /**
  * GET /api/me/results?course_id=&sitting=
@@ -67,8 +68,20 @@ export const GET = withApiTiming("GET /api/me/results", async (request: Request)
     const pool = getPool();
 
     // Resolve reg_no from the session link only (never from the client)
-    const [[userRow]] = await pool.query<(RowDataPacket & { reg_no: string | null })[]>(
-      "SELECT s.reg_no FROM users u " +
+    const [[userRow]] = await pool.query<
+      (RowDataPacket & {
+        reg_no: string | null;
+        fullname: string | null;
+        email: string | null;
+        phone_no: string | null;
+        dob: string | Date | null;
+        place_of_birth: string | null;
+        has_photo: number | string | null;
+      })[]
+    >(
+      "SELECT s.reg_no, s.fullname, s.email, s.phone_no, s.dob, s.place_of_birth, " +
+        "(s.ProfileImage IS NOT NULL AND TRIM(s.ProfileImage) <> '') AS has_photo " +
+        "FROM users u " +
         "INNER JOIN stud2022 s ON u.stud2022_id = s.id " +
         "WHERE u.id = ? LIMIT 1",
       [valid.userId]
@@ -77,6 +90,19 @@ export const GET = withApiTiming("GET /api/me/results", async (request: Request)
     if (!reg_no) {
       return NextResponse.json({ data: null, reason: "no-student" });
     }
+
+    // `dob` is a DATE column: format it in local time so the calendar day is
+    // never shifted by the UTC conversion.
+    const dob =
+      userRow?.dob instanceof Date
+        ? [
+            userRow.dob.getFullYear(),
+            String(userRow.dob.getMonth() + 1).padStart(2, "0"),
+            String(userRow.dob.getDate()).padStart(2, "0"),
+          ].join("-")
+        : typeof userRow?.dob === "string"
+          ? userRow.dob.slice(0, 10)
+          : null;
 
     // Check payment status first
     const [[payRow]] = await pool.query<(RowDataPacket & { payment_status: string })[]>(
@@ -117,7 +143,26 @@ export const GET = withApiTiming("GET /api/me/results", async (request: Request)
       return NextResponse.json({ data: null, reason: "not-found" });
     }
 
-    return NextResponse.json({ data: rows[0] });
+    const row = rows[0];
+    // Legacy rows store `total = 0`: fall back to the sum of the four skills so
+    // the result screen never shows 0 next to real scores.
+    return NextResponse.json({
+      data: {
+        ...row,
+        total_score: resolveResultTotal(row),
+        // Identity block for the printable result slip. Only this student's own
+        // record is returned; the raw ProfileImage path never leaves the server.
+        student: {
+          reg_no,
+          fullname: userRow?.fullname ?? null,
+          email: userRow?.email ?? null,
+          phone: userRow?.phone_no ?? null,
+          dob,
+          place_of_birth: userRow?.place_of_birth ?? null,
+          has_photo: Boolean(Number(userRow?.has_photo ?? 0)),
+        },
+      },
+    });
   } catch (error) {
     return authErrorResponse(error);
   }

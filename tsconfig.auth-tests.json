@@ -31,6 +31,9 @@
     "src/lib/auth/mysql-students.ts",
     "src/lib/auth/auth-store-config.ts",
     "src/lib/auth/auth-service.ts",
-    "src/lib/monitoring/perf.ts"
+    "src/lib/monitoring/perf.ts",
+    "src/lib/results.ts",
+    "src/lib/result-pdf.ts",
+    "src/lib/student-photo.ts"
   ]
 }
