@@ -45,6 +45,7 @@ const REQUIRED_BUILD_MODULES = [
   "dev-mailer.js",
   "email-provider.js",
   "mysql-challenges.js",
+  "mysql-sessions.js",
   "mysql-users.js",
   "otp.js",
   "sessions.js",

@@ -59,6 +59,18 @@ function toStoreError(error: unknown): AuthError {
   return new AuthError("store-error", 500, "Account service is unavailable.");
 }
 
+/**
+ * `mysql2` resolves `query()` as `[ResultSetHeader, FieldPacket[] | undefined]`.
+ * For INSERT/UPDATE/DELETE the second element is `undefined` and the write
+ * metadata (`affectedRows`, `insertId`) lives on the FIRST one. Reading
+ * `.affectedRows` off the second element throws `TypeError`, which the store
+ * then reports as a 500 "Account service is unavailable." — that is what used
+ * to break the final step of the password reset (`revokeAllForUser`).
+ */
+function affectedRows(result: unknown): number {
+  return (result as { affectedRows?: number } | undefined)?.affectedRows ?? 0;
+}
+
 export class MySqlSessionStore implements SessionStore {
   constructor(private readonly pool: AuthPool) {}
 
@@ -107,8 +119,8 @@ export class MySqlSessionStore implements SessionStore {
 
   async revokeByTokenHash(tokenHash: string): Promise<boolean> {
     try {
-      const [, result] = await this.pool.query("DELETE FROM sessions WHERE token_hash = ?", [tokenHash]);
-      return ((result as { affectedRows?: number }).affectedRows ?? 0) > 0;
+      const [result] = await this.pool.query("DELETE FROM sessions WHERE token_hash = ?", [tokenHash]);
+      return affectedRows(result) > 0;
     } catch (error) {
       throw toStoreError(error);
     }
@@ -116,8 +128,8 @@ export class MySqlSessionStore implements SessionStore {
 
   async revokeAllForUser(userId: number): Promise<number> {
     try {
-      const [, result] = await this.pool.query("DELETE FROM sessions WHERE user_id = ?", [userId]);
-      return (result as { affectedRows?: number }).affectedRows ?? 0;
+      const [result] = await this.pool.query("DELETE FROM sessions WHERE user_id = ?", [userId]);
+      return affectedRows(result);
     } catch (error) {
       throw toStoreError(error);
     }
@@ -125,10 +137,10 @@ export class MySqlSessionStore implements SessionStore {
 
   async deleteExpired(now: number): Promise<number> {
     try {
-      const [, result] = await this.pool.query("DELETE FROM sessions WHERE expires_at <= FROM_UNIXTIME(?)", [
+      const [result] = await this.pool.query("DELETE FROM sessions WHERE expires_at <= FROM_UNIXTIME(?)", [
         Math.floor(now / 1000),
       ]);
-      return (result as { affectedRows?: number }).affectedRows ?? 0;
+      return affectedRows(result);
     } catch (error) {
       throw toStoreError(error);
     }

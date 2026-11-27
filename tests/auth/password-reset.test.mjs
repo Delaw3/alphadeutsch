@@ -11,6 +11,7 @@ const {
   MemoryUserStore,
 } = require("../build/auth/auth-service.js");
 const { MemorySessionStore, hashSessionToken } = require("../build/auth/sessions.js");
+const { MySqlSessionStore } = require("../build/auth/mysql-sessions.js");
 const { MemoryChallengeStore } = require("../build/auth/verification.js");
 const { DevOutboxAdapter } = require("../build/auth/dev-mailer.js");
 const { MemoryStudentStore } = require("../build/auth/mysql-students.js");
@@ -55,6 +56,22 @@ class FailingRevokeSessionStore extends MemorySessionStore {
   async revokeAllForUser(userId) {
     if (this.failRevoke) throw new Error("simulated session store failure");
     return super.revokeAllForUser(userId);
+  }
+}
+
+/**
+ * `mysql2/promise` resolves writes as `[ResultSetHeader, undefined]`; only the
+ * first element carries `affectedRows`. This pool reproduces that tuple so the
+ * reset path is exercised against the real `MySqlSessionStore` code.
+ */
+class MysqlShapedSessionPool {
+  constructor() {
+    this.calls = [];
+  }
+
+  async query(sql, params = []) {
+    this.calls.push({ sql, params });
+    return [{ affectedRows: 1, insertId: 1 }, undefined];
   }
 }
 
@@ -251,6 +268,38 @@ describe("password reset", () => {
       await failing.findByTokenHash(hashSessionToken(stillOld.sessionToken)),
       null,
       "every session from before the reset must be revoked",
+    );
+  });
+
+  it("completes the reset with the MySQL session store", async () => {
+    const mailer = new DevOutboxAdapter();
+    const pool = new MysqlShapedSessionPool();
+    const service = new AuthService({
+      users: new MemoryUserStore(),
+      sessions: new MySqlSessionStore(pool),
+      challenges: new MemoryChallengeStore(),
+      mailer,
+      students: new MemoryStudentStore(),
+      passwordCost: 4,
+    });
+
+    await verifiedAccount(service, mailer);
+    await service.requestPasswordReset({ email: EMAIL, clientIp: "forgot-mysql" });
+    const { code } = mailer.latestFor(EMAIL);
+    const { ticket } = await service.verifyResetCode({ email: EMAIL, code, clientIp: "verify-reset-mysql" });
+
+    // Regression: this used to answer 500 "Account service is unavailable."
+    // because the store read `affectedRows` from the wrong tuple element.
+    await service.resetPassword({ email: EMAIL, ticket, password: NEW_PASSWORD, clientIp: "reset-mysql" });
+
+    const revocation = pool.calls.find((call) => call.sql === "DELETE FROM sessions WHERE user_id = ?");
+    assert.ok(revocation, "the reset must revoke every existing session");
+    assert.equal(revocation.params.length, 1);
+
+    await assert.rejects(
+      () => service.signin({ email: EMAIL, password: PASSWORD, clientIp: "signin-mysql" }),
+      isAuthError("invalid-credentials"),
+      "the old password must stop working",
     );
   });
 });
